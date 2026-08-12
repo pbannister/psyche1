@@ -10,7 +10,7 @@ help:
 	@echo "  clean    - Remove __pycache__, .pyc, .egg-info, build artifacts"
 	@echo "  format   - Run black on sources/ (if installed)"
 	@echo "  lint     - Run flake8 on sources/ (if installed)"
-	@echo "  test     - Run pytest (once tests are written)"
+	@echo "  test     - Run pytest inside the virtual environment"
 
 .venv:
 	python3 -m venv .venv
@@ -33,5 +33,5 @@ format:
 lint:
 	flake8 sources/ --max-line-length=100
 
-test:
-	pytest
+test: .venv
+	. .venv/bin/activate && pytest
