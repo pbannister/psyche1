@@ -2,7 +2,7 @@
 
 * [x] implement facial recognition
 
-* [ ] define requirements for voice recognition
+* [x] define requirements for voice recognition
 * [ ] implement voice recognition
 
 
