@@ -2,3 +2,4 @@
 _*
 logs/
 *.log
+.venv/

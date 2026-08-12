@@ -5,7 +5,6 @@
 
 help:
 	@echo "Targets:"
-	@echo "  venv     - Create a virtual environment in .venv"
 	@echo "  install  - Install Python dependencies from requirements.txt"
 	@echo "  run      - Run the application (python -m sources.main)"
 	@echo "  clean    - Remove __pycache__, .pyc, .egg-info, build artifacts"
@@ -13,14 +12,14 @@ help:
 	@echo "  lint     - Run flake8 on sources/ (if installed)"
 	@echo "  test     - Run pytest (once tests are written)"
 
-venv:
+.venv:
 	python3 -m venv .venv
 
-install:
-	pip install -r requirements.txt
+install: .venv
+	. .venv/bin/activate &&	pip install -r requirements.txt
 
-run:
-	python -m sources.main
+run: .venv
+	. .venv/bin/activate && python3 -m sources.main
 
 clean:
 	find . -type d -name "__pycache__" -exec rm -rf {} +
