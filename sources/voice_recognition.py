@@ -1,23 +1,12 @@
-from pathlib import Path
+from pathlib import Path  # noqa: F401  (kept for compatibility)
 from typing import Callable, Optional
-import json
 import logging
-import os
 import threading
-import urllib.request
-import zipfile
 
 import numpy as np
 
 from .audio_io import AudioIO
-
-try:
-    from vosk import Model, KaldiRecognizer
-    _vosk_available = True
-except ImportError:
-    Model = None
-    KaldiRecognizer = None
-    _vosk_available = False
+from .speech_to_text import SpeechToText
 
 # RMS above this threshold is considered “voice present”.
 VOICE_THRESHOLD = 0.02
@@ -47,17 +36,7 @@ class VoiceRecognition:
             self.audio = AudioIO(sample_rate=16000, channels=1)
 
         self.language = language
-
-        # Locate the Vosk model
-        self.model_path = model_path or os.environ.get("VOSK_MODEL_PATH")
-        self._auto_download = False
-        if self.model_path is None:
-            self.model_path = str(
-                Path.home() / ".cache" / "psyche1" / "vosk-model-small-en-us-0.15"
-            )
-            self._auto_download = True
-
-        self._model = None
+        self.stt = SpeechToText(model_path=model_path, language=language)
 
         # Streaming state
         self._stream_thread: Optional[threading.Thread] = None
@@ -68,35 +47,12 @@ class VoiceRecognition:
     #  Public API
     # ------------------------------------------------------------------
     def transcribe(self, data: np.ndarray) -> str:
-        """Transcribe a 16kHz float32 NumPy array and return the text.
+        """Transcribe a 16 kHz float32 NumPy array and return the text.
 
         Raises a descriptive ``RuntimeError`` if Vosk or the model cannot
         be loaded.
         """
-        if not _vosk_available:
-            raise RuntimeError(
-                "Vosk is not installed. Install it with: pip install vosk"
-            )
-
-        if self._model is None:
-            self._ensure_model()
-            self._model = Model(self.model_path)
-
-        # Convert float32 audio to 16-bit PCM bytes expected by Vosk
-        try:
-            pcm_bytes = (
-                (data * 32767).clip(-32768, 32767).astype(np.int16).tobytes()
-            )
-        except Exception as exc:
-            raise RuntimeError(f"Failed to convert audio to PCM: {exc}") from exc
-
-        try:
-            rec = KaldiRecognizer(self._model, self.audio.sample_rate)
-            rec.AcceptWaveform(pcm_bytes)
-            result = json.loads(rec.FinalResult())
-            return result.get("text", "").strip()
-        except Exception as exc:
-            raise RuntimeError(f"Vosk transcription failed: {exc}") from exc
+        return self.stt.transcribe(data)
 
     def start_stream(
         self,
@@ -137,49 +93,6 @@ class VoiceRecognition:
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
-    def _ensure_model(self) -> None:
-        """Make sure the Vosk model directory exists.
-
-        If the model is a default cache path and the directory is missing,
-        download and unzip the small English model automatically.
-        Otherwise raise a clear error.
-        """
-        if os.path.isdir(self.model_path):
-            return
-
-        if not self._auto_download:
-            raise RuntimeError(
-                "Vosk model not found. Set VOSK_MODEL_PATH to a valid "
-                "directory containing a Vosk model."
-            )
-
-        cache_root = Path.home() / ".cache" / "psyche1"
-        cache_root.mkdir(parents=True, exist_ok=True)
-
-        zip_path = cache_root / "vosk-model-small-en-us-0.15.zip"
-        url = "https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip"
-
-        print("VoiceRecognition: first‑run – downloading Vosk model …")
-        try:
-            urllib.request.urlretrieve(url, str(zip_path))
-            with zipfile.ZipFile(zip_path, "r") as zf:
-                zf.extractall(cache_root)
-        except Exception as exc:
-            raise RuntimeError(
-                "Could not download the Vosk model automatically.\n"
-                f"Try downloading it manually from {url}\n"
-                "and extracting it to ~/.cache/psyche1/"
-            ) from exc
-        finally:
-            if zip_path.exists():
-                zip_path.unlink()
-
-        if not os.path.isdir(self.model_path):
-            raise RuntimeError(
-                "Vosk model downloaded but the expected directory was not "
-                f"created at {self.model_path}. Please check the download."
-            )
-
     def _stream_worker(self, chunk_duration: float) -> None:
         """Background loop that records and transcribes chunks."""
         while not self._stream_stop_event.is_set():
