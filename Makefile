@@ -34,4 +34,4 @@ lint:
 	flake8 sources/ --max-line-length=100
 
 test: .venv
-	. .venv/bin/activate && pytest
+	. .venv/bin/activate && python3 -m pytest
