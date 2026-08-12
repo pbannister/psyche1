@@ -12,3 +12,8 @@
 * [x] fix input underflow warnings (ignore benign warnings, set blocksize to 1024)
 * [ ] add unit tests for audio/video modules
 * [ ] add CI pipeline (optional)
+
+## Newly identified
+
+- [ ] Write punctuation tests for AudioIO and VideoCapture classes
+- [ ] Run `pytest` to confirm initial pass before expanding coverage
