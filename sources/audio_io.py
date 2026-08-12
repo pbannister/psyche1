@@ -1,7 +1,24 @@
 import threading
 
 import numpy as np
-import sounddevice as sd
+
+try:
+    import sounddevice as sd
+except (ImportError, OSError) as exc:
+    # PortAudio system library not found. The rest of the application
+    # can still start; audio methods will raise a clear error when used.
+    sd = None
+    _SD_IMPORT_ERROR = exc
+else:
+    _SD_IMPORT_ERROR = None
+
+
+def _require_sounddevice():
+    if sd is None:
+        detail = "PortAudio library not found. Install it with: sudo apt install libportaudio2"
+        if _SD_IMPORT_ERROR is not None:
+            detail += f" (original error: {_SD_IMPORT_ERROR})"
+        raise RuntimeError(detail)
 
 
 class AudioIO:
@@ -10,6 +27,10 @@ class AudioIO:
     Captures microphone input and plays speaker output simultaneously.
     By default it acts as a loopback (mic -> speaker). Provide callbacks
     to process input or generate output.
+
+    If the underlying PortAudio library is missing, constructing this
+    class still succeeds but every audio method raises a RuntimeError
+    with installation instructions.
     """
 
     def __init__(self, sample_rate: int = 44100, channels: int = 1):
@@ -30,6 +51,8 @@ class AudioIO:
                 Receives the number of frames and returns a numpy array
                 of shape (frames, channels) to be played.
         """
+        _require_sounddevice()
+
         def callback(indata, outdata, frames, time_info, status):
             if status:
                 print(f"Audio status: {status}")
@@ -73,6 +96,7 @@ class AudioIO:
         Returns:
             numpy.ndarray of shape (int(duration * sample_rate), channels)
         """
+        _require_sounddevice()
         audio = sd.rec(
             int(duration * self.sample_rate),
             samplerate=self.sample_rate,
@@ -88,4 +112,5 @@ class AudioIO:
         Args:
             data: float32 array of shape (frames, channels) or (frames,)
         """
+        _require_sounddevice()
         sd.play(data, samplerate=self.sample_rate, blocking=False)
