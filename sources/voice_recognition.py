@@ -3,6 +3,8 @@ from typing import Callable, Optional
 import json
 import os
 import threading
+import urllib.request
+import zipfile
 
 import numpy as np
 
@@ -21,7 +23,8 @@ class VoiceRecognition:
     """Transcribe microphone audio using a local Vosk model.
 
     Audio is captured through :class:`~.audio_io.AudioIO` and processed
-    entirely offline. No network call is performed.
+    entirely offline. No network call is performed except the optional
+    first‑run download of the model.
     """
 
     def __init__(
@@ -41,10 +44,12 @@ class VoiceRecognition:
 
         # Locate the Vosk model
         self.model_path = model_path or os.environ.get("VOSK_MODEL_PATH")
+        self._auto_download = False
         if self.model_path is None:
-            default_cache = Path.home() / ".cache" / "psyche1" / "vosk-model-small-en-us-0.15"
-            if default_cache.is_dir():
-                self.model_path = str(default_cache)
+            self.model_path = str(
+                Path.home() / ".cache" / "psyche1" / "vosk-model-small-en-us-0.15"
+            )
+            self._auto_download = True
 
         self._model = None
 
@@ -68,13 +73,7 @@ class VoiceRecognition:
             )
 
         if self._model is None:
-            if self.model_path is None or not os.path.isdir(self.model_path):
-                raise RuntimeError(
-                    "Vosk model not found. Download a model (e.g. "
-                    "vosk-model-small-en-us-0.15) and place it in "
-                    "~/.cache/psyche1/ , or set the VOSK_MODEL_PATH "
-                    "environment variable."
-                )
+            self._ensure_model()
             self._model = Model(self.model_path)
 
         # Convert float32 audio to 16-bit PCM bytes expected by Vosk
@@ -128,6 +127,49 @@ class VoiceRecognition:
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
+    def _ensure_model(self) -> None:
+        """Make sure the Vosk model directory exists.
+
+        If the model is a default cache path and the directory is missing,
+        download and unzip the small English model automatically.
+        Otherwise raise a clear error.
+        """
+        if os.path.isdir(self.model_path):
+            return
+
+        if not self._auto_download:
+            raise RuntimeError(
+                "Vosk model not found. Set VOSK_MODEL_PATH to a valid "
+                "directory containing a Vosk model."
+            )
+
+        cache_root = Path.home() / ".cache" / "psyche1"
+        cache_root.mkdir(parents=True, exist_ok=True)
+
+        zip_path = cache_root / "vosk-model-small-en-us-0.15.zip"
+        url = "https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip"
+
+        print("VoiceRecognition: first‑run – downloading Vosk model …")
+        try:
+            urllib.request.urlretrieve(url, str(zip_path))
+            with zipfile.ZipFile(zip_path, "r") as zf:
+                zf.extractall(cache_root)
+        except Exception as exc:
+            raise RuntimeError(
+                "Could not download the Vosk model automatically.\n"
+                f"Try downloading it manually from {url}\n"
+                "and extracting it to ~/.cache/psyche1/"
+            ) from exc
+        finally:
+            if zip_path.exists():
+                zip_path.unlink()
+
+        if not os.path.isdir(self.model_path):
+            raise RuntimeError(
+                "Vosk model downloaded but the expected directory was not "
+                f"created at {self.model_path}. Please check the download."
+            )
+
     def _stream_worker(self, chunk_duration: float) -> None:
         """Background loop that records and transcribes chunks."""
         while not self._stream_stop_event.is_set():
