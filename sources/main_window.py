@@ -103,6 +103,13 @@ class MainWindow(QMainWindow):
         self.record_button.clicked.connect(self.toggle_voice_recording)
         voice_layout.addWidget(self.record_button)
 
+        self.voice_status_label = QLabel("Idle")
+        self.voice_status_label.setWordWrap(True)
+        self.voice_status_label.setStyleSheet(
+            "background-color: #9E9E9E; color: white; padding: 3px;"
+        )
+        voice_layout.addWidget(self.voice_status_label)
+
         self.transcription_label = QLabel("")
         self.transcription_label.setWordWrap(True)
         self.transcription_label.setStyleSheet(
@@ -209,14 +216,49 @@ class MainWindow(QMainWindow):
                 QMessageBox.critical(self, "Voice Recognition", str(exc))
                 return
 
+            self.voice_status_label.setText("Listening…")
+            self.voice_status_label.setStyleSheet(
+                "background-color: #2196F3; color: white; padding: 3px;"
+            )
             self.record_button.setText("Stop Recording")
         else:
             self.voice_recognizer.stop_stream()
+            self.voice_status_label.setText("Idle")
+            self.voice_status_label.setStyleSheet(
+                "background-color: #9E9E9E; color: white; padding: 3px;"
+            )
             self.record_button.setText("Start Recording")
 
     def _on_transcription(self, text: str) -> None:
-        """Called by the voice recognition thread with each transcribed chunk."""
+        """Called by the voice recognition thread with each transcribed chunk.
+
+        The call originates from a background thread, so we schedule the
+        UI update on the main thread using QTimer.singleShot.
+        """
+        QTimer.singleShot(0, lambda: self._set_transcription(text))
+
+    def _set_transcription(self, text: str) -> None:
+        """Update the transcription label and the voice status indicator.
+
+        This method runs on the main (GUI) thread.
+        """
         self.transcription_label.setText(text)
+
+        if text.startswith("[Error]"):
+            self.voice_status_label.setText("Error")
+            self.voice_status_label.setStyleSheet(
+                "background-color: #F44336; color: white; padding: 3px;"
+            )
+        elif text.strip():
+            self.voice_status_label.setText("Recognized")
+            self.voice_status_label.setStyleSheet(
+                "background-color: #4CAF50; color: white; padding: 3px;"
+            )
+        else:
+            self.voice_status_label.setText("Listening…")
+            self.voice_status_label.setStyleSheet(
+                "background-color: #2196F3; color: white; padding: 3px;"
+            )
 
     def closeEvent(self, event) -> None:
         """Clean up resources when the window is closed."""
