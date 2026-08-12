@@ -42,6 +42,8 @@ class FaceRecognition:
             )
             for name in candidates:
                 full = os.path.join(base_dir, name)
+                if not os.path.isfile(full):
+                    continue
                 try:
                     test = cv2.CascadeClassifier(full)
                     if not test.empty():

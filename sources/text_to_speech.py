@@ -245,9 +245,15 @@ class TextToSpeech:
     def _speak_sync(self, text: str, block: bool) -> None:
         """Synthesize ``text`` and play it back (optionally blocking)."""
         self._ensure_available()
+        voice = self._get_voice()
+        sample_rate = getattr(getattr(voice, "config", None), "sample_rate", 22050)
+
         buffer = io.BytesIO()
         with wave.open(buffer, "wb") as wav_file:
-            self._get_voice().synthesize(text, wav_file)
+            wav_file.setnchannels(1)
+            wav_file.setsampwidth(2)
+            wav_file.setframerate(sample_rate)
+            voice.synthesize(text, wav_file)
 
         buffer.seek(0)
         try:
