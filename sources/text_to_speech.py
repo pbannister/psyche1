@@ -245,6 +245,8 @@ class TextToSpeech:
     def _speak_sync(self, text: str, block: bool) -> None:
         """Synthesize ``text`` and play it back (optionally blocking)."""
         self._ensure_available()
+        logger.info("Speaking text: %s", text)
+
         voice = self._get_voice()
         sample_rate = getattr(getattr(voice, "config", None), "sample_rate", 22050)
 
@@ -281,4 +283,6 @@ class TextToSpeech:
         # thread exits.  The thread itself is a background daemon thread,
         # but calling sd.play() with blocking=True keeps it alive until
         # the audio finishes, ensuring that the sound is actually heard.
+        logger.info("Starting speech")
         sd.play(audio, samplerate=framerate, blocking=True)
+        logger.info("Speech ended")
