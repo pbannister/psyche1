@@ -1,5 +1,6 @@
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
+import os
 
 import cv2
 import numpy as np
@@ -29,8 +30,31 @@ class FaceRecognition:
         known_faces_dir: Optional[str] = None,
         cascade_path: Optional[str] = None,
     ) -> None:
+        # Search for a usable Haar cascade file in the standard OpenCV data
+        # directory.  Several file names exist across OpenCV releases; try
+        # the most common ones.
         if cascade_path is None:
-            cascade_path = cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
+            base_dir = cv2.data.haarcascades
+            candidates = (
+                "haarcascade_frontalface_default.xml",
+                "haarcascade_frontalface_alt.xml",
+                "haarcascade_frontalface_alt2.xml",
+            )
+            for name in candidates:
+                full = os.path.join(base_dir, name)
+                try:
+                    test = cv2.CascadeClassifier(full)
+                    if not test.empty():
+                        cascade_path = full
+                        break
+                except Exception:
+                    continue
+            if cascade_path is None:
+                raise RuntimeError(
+                    "Could not find a Haar cascade classifier.  "
+                    f"Searched in {base_dir} with candidates "
+                    f"{', '.join(candidates)}"
+                )
 
         # Try the usual attribute first, fall back to the low‑level
         # extension module that some builds expose as cv2.cv2.
