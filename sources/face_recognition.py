@@ -31,11 +31,33 @@ class FaceRecognition:
     ) -> None:
         if cascade_path is None:
             cascade_path = cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
-        self.face_cascade = cv2.CascadeClassifier(cascade_path)
+
+        # CascadeClassifier may be exposed differently depending on the
+        # OpenCV build.  Try the expected name first, then a fallback.
+        cascade_class = getattr(cv2, "CascadeClassifier", None)
+        if cascade_class is None:
+            # Some builds keep it under cv2.cv2.CascadeClassifier
+            fallback = getattr(cv2, "cv2", None)
+            if fallback is not None:
+                cascade_class = getattr(fallback, "CascadeClassifier", None)
+
+        if cascade_class is None:
+            raise RuntimeError(
+                "OpenCV does not provide CascadeClassifier. "
+                "Please install opencv-python or opencv-contrib-python."
+            )
+
+        self.face_cascade = cascade_class(cascade_path)
         if self.face_cascade.empty():
             raise RuntimeError(f"Could not load Haar cascade from {cascade_path}")
 
-        self.recognizer = cv2.face.LBPHFaceRecognizer_create()
+        # LBPHFaceRecognizer comes from opencv-contrib; gracefully
+        # degrade to detection-only mode if it is missing.
+        try:
+            self.recognizer = cv2.face.LBPHFaceRecognizer_create()
+        except AttributeError:
+            self.recognizer = None
+
         self.known_faces_dir = known_faces_dir
         self.ready = False
         self.labels: Dict[int, str] = {}
@@ -45,6 +67,14 @@ class FaceRecognition:
 
     def load_known_faces(self, directory: str) -> None:
         """Train the recognizer from a directory of person-named subfolders."""
+        if self.recognizer is None:
+            print(
+                "Warning: face recognizer is not available "
+                "(opencv-contrib-python is missing). Recognition will be disabled."
+            )
+            self.ready = False
+            return
+
         dir_path = Path(directory)
         if not dir_path.is_dir():
             raise FileNotFoundError(f"Faces directory not found: {directory}")
@@ -62,7 +92,9 @@ class FaceRecognition:
                 label_ids[person_name] = next_id
                 next_id += 1
 
-            image_paths = sorted(person_dir.glob("*.jpg")) + sorted(person_dir.glob("*.png"))
+            image_paths = sorted(person_dir.glob("*.jpg")) + sorted(
+                person_dir.glob("*.png")
+            )
             for image_path in image_paths:
                 img = cv2.imread(str(image_path))
                 if img is None:
@@ -99,7 +131,7 @@ class FaceRecognition:
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         results = []
 
-        for (x, y, w, h) in self.detect(frame):
+        for x, y, w, h in self.detect(frame):
             roi = gray[y : y + h, x : x + w]
             name = "Unknown"
             confidence = None
@@ -112,7 +144,7 @@ class FaceRecognition:
                 {
                     "bbox": (x, y, w, h),
                     "name": name,
-                    "confidence": confidence,
+                    "confidence": float(confidence) if confidence is not None else None,
                 }
             )
 
