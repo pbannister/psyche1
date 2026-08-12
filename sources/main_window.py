@@ -106,8 +106,17 @@ class MainWindow(QMainWindow):
         self.voice_status_label = QLabel("Idle")
         self.voice_status_label.setWordWrap(True)
         self.voice_status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.voice_status_label.setAutoFillBackground(True)
+        self.voice_status_label.setMinimumHeight(28)
         self.voice_status_label.setStyleSheet(
-            "background-color: #9E9E9E; color: white; padding: 8px;"
+            """
+            background-color: #9e9e9e;
+            color: white;
+            padding: 4px;
+            border: 1px solid #555;
+            border-radius: 4px;
+            font-weight: bold;
+            """
         )
         voice_layout.addWidget(self.voice_status_label)
 
@@ -219,14 +228,28 @@ class MainWindow(QMainWindow):
 
             self.voice_status_label.setText("Listening…")
             self.voice_status_label.setStyleSheet(
-                "background-color: #2196F3; color: white; padding: 8px;"
+                """
+                background-color: #2196F3;
+                color: white;
+                padding: 4px;
+                border: 1px solid #555;
+                border-radius: 4px;
+                font-weight: bold;
+                """
             )
             self.record_button.setText("Stop Recording")
         else:
             self.voice_recognizer.stop_stream()
             self.voice_status_label.setText("Idle")
             self.voice_status_label.setStyleSheet(
-                "background-color: #9E9E9E; color: white; padding: 8px;"
+                """
+                background-color: #9e9e9e;
+                color: white;
+                padding: 4px;
+                border: 1px solid #555;
+                border-radius: 4px;
+                font-weight: bold;
+                """
             )
             self.record_button.setText("Start Recording")
 
@@ -248,22 +271,50 @@ class MainWindow(QMainWindow):
         if text.startswith("[Error]"):
             self.voice_status_label.setText("Error")
             self.voice_status_label.setStyleSheet(
-                "background-color: #F44336; color: white; padding: 8px;"
+                """
+                background-color: #F44336;
+                color: white;
+                padding: 4px;
+                border: 1px solid #555;
+                border-radius: 4px;
+                font-weight: bold;
+                """
             )
         elif not has_voice:
             self.voice_status_label.setText("No voice")
             self.voice_status_label.setStyleSheet(
-                "background-color: #616161; color: white; padding: 8px;"
+                """
+                background-color: #616161;
+                color: white;
+                padding: 4px;
+                border: 1px solid #555;
+                border-radius: 4px;
+                font-weight: bold;
+                """
             )
         elif text.strip():
             self.voice_status_label.setText("Recognized voice")
             self.voice_status_label.setStyleSheet(
-                "background-color: #4CAF50; color: white; padding: 8px;"
+                """
+                background-color: #4CAF50;
+                color: white;
+                padding: 4px;
+                border: 1px solid #555;
+                border-radius: 4px;
+                font-weight: bold;
+                """
             )
         else:
             self.voice_status_label.setText("Unrecognized voice")
             self.voice_status_label.setStyleSheet(
-                "background-color: #FF9800; color: white; padding: 8px;"
+                """
+                background-color: #FF9800;
+                color: white;
+                padding: 4px;
+                border: 1px solid #555;
+                border-radius: 4px;
+                font-weight: bold;
+                """
             )
 
     def closeEvent(self, event) -> None:
