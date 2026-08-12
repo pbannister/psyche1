@@ -1,5 +1,6 @@
 # TODO
 
+* [ ] update method names to match conventions
 * [ ] add CI pipeline (optional)
 
 ## Completed
