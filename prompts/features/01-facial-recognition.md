@@ -1,34 +1,48 @@
 # Facial recognition
 
+## Overview
+
 Detect human faces in a live webcam feed.
 Label each detected face with a name when a match is found in the known‑faces directory.
 Label each detected face as "Unknown" when no match exists.
 Provide a bounding box around each detected face.
 Provide a confidence score for recognized faces.
 Support both detection only and detection plus recognition modes.
-Load known faces from a directory of per‑person subfolders.
-Train a recognizer from the images in that directory on startup.
-Use OpenCV Haar cascade for detection.
-Use OpenCV LBPH recognizer for face recognition.
-Expose a `recognize(frame)` method that accepts a BGR frame and returns a list of result dictionaries.
-Each result dictionary contains the keys `bbox`, `name`, and `confidence`.
-The `bbox` value is a tuple `(x, y, w, h)`.
-The `name` value is a string.
-The `confidence` value is either a float or `None` when no known faces are loaded.
-Fail with a clear error if the Haar cascade cannot be loaded.
-Allow the application to start even when no known‑faces directory is provided.
-Locate the Haar cascade XML file using a search order.
-First search the standard OpenCV data directory (`cv2.data.haarcascades`) for known filenames.
-If not found, fall back to a file next to the module (`sources/` directory).
-Finally, download the file from the OpenCV repository to the user cache (`~/.cache/psyche1/`).
-Cache the downloaded file so later runs do not re‑download.
-When opencv‑contrib‑python is missing, the recognizer is disabled.
-In that case detection still works, but all recognised faces are labelled "Unknown".
-The UI overlays the bounding box and name on the video frame.
-The `detect(frame)` method must be available separately and return the list of boxes.
-The `recognize()` method calls `detect()` internally.
-Known‑faces loading must silently skip images that do not contain faces.
-The recogniser is trained only once at startup; no online learning is performed.
+
+## Functional requirements
+
+- Use OpenCV Haar cascade for detection.
+- Use OpenCV LBPH recognizer for face recognition.
+- Load known faces from a directory of per‑person subfolders.
+- Train a recognizer from the images in that directory on startup.
+- The recogniser is trained only once at startup; no online learning is performed.
+- Known‑faces loading must silently skip images that do not contain faces.
+- When opencv‑contrib‑python is missing, the recognizer is disabled.
+  In that case detection still works, but all recognised faces are labelled "Unknown".
+- Allow the application to start even when no known‑faces directory is provided.
+
+## API
+
+- Expose a `recognize(frame)` method that accepts a BGR frame and returns a list of result dictionaries.
+- Each result dictionary contains the keys `bbox`, `name`, and `confidence`.
+- The `bbox` value is a tuple `(x, y, w, h)`.
+- The `name` value is a string.
+- The `confidence` value is either a float or `None` when no known faces are loaded.
+- The `detect(frame)` method must be available separately and return the list of boxes.
+- The `recognize()` method calls `detect()` internally.
+
+## Cascade file location
+
+- Fail with a clear error if the Haar cascade cannot be loaded.
+- Locate the Haar cascade XML file using a search order.
+  1. First search the standard OpenCV data directory (`cv2.data.haarcascades`) for known filenames.
+  2. If not found, fall back to a file next to the module (`sources/` directory).
+  3. Finally, download the file from the OpenCV repository to the user cache (`~/.cache/psyche1/`).
+- Cache the downloaded file so later runs do not re‑download.
+
+## UI integration
+
+- The UI overlays the bounding box and name on the video frame.
 
 ## Python-specific requirements
 
