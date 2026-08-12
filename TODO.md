@@ -13,7 +13,7 @@
 
 ## Next Up
 
-* [ ] add unit tests for audio I/O
+* [x] add unit tests for audio I/O
 * [ ] add unit tests for video capture
 * [ ] run `pytest` and make it pass
 * [ ] add CI pipeline (optional)
