@@ -73,3 +73,5 @@ These conventions ensure consistency across the codebase and make it easier for 
 
 ## Example
 
+The following snippet demonstrates the expected style for functions and docstrings:
+
