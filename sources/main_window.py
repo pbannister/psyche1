@@ -84,6 +84,10 @@ class MainWindow(QMainWindow):
 
     def start_video(self) -> None:
         """Start the webcam capture and begin showing frames."""
+        # If the camera was previously stopped, recreate the capture object
+        if not self.video_capture.cap.isOpened():
+            self.video_capture = VideoCapture()
+
         if not self.video_capture.cap.isOpened():
             QMessageBox.critical(self, "Camera Error", "Could not open the camera.")
             return
@@ -124,7 +128,7 @@ class MainWindow(QMainWindow):
         """Start the microphone-to-speaker audio loopback."""
         try:
             self.audio_io.start()
-        except RuntimeError as exc:
+        except Exception as exc:
             QMessageBox.critical(self, "Audio Error", str(exc))
             return
 

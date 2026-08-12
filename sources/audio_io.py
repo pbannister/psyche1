@@ -19,7 +19,7 @@ class AudioIO:
         self._lock = threading.Lock()
         self._is_running = False
 
-    def start(self, input_callback=None, output_callback=None):
+    def start(self, input_callback=None, output_callback=None) -> None:
         """Start the audio stream.
 
         Args:
@@ -55,7 +55,7 @@ class AudioIO:
             self.stream.start()
             self._is_running = True
 
-    def stop(self):
+    def stop(self) -> None:
         """Stop and close the audio stream if it is running."""
         with self._lock:
             if self._is_running:
@@ -82,7 +82,7 @@ class AudioIO:
         sd.wait()
         return audio
 
-    def play(self, data: np.ndarray):
+    def play(self, data: np.ndarray) -> None:
         """Play a numpy array of audio data asynchronously.
 
         Args:

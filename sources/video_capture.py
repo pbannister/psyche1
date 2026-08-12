@@ -1,7 +1,9 @@
+from typing import Optional
 import threading
 import time
 
 import cv2
+import numpy as np
 
 
 class VideoCapture:
@@ -22,7 +24,7 @@ class VideoCapture:
         self.running = False
         self.thread = None
 
-    def start(self):
+    def start(self) -> None:
         """Start the background capture thread."""
         if self.running:
             return
@@ -30,7 +32,7 @@ class VideoCapture:
         self.thread = threading.Thread(target=self._update, daemon=True)
         self.thread.start()
 
-    def _update(self):
+    def _update(self) -> None:
         while self.running:
             ret, frame = self.cap.read()
             if not ret:
@@ -39,7 +41,7 @@ class VideoCapture:
                 self.frame = frame
             time.sleep(0.03)  # roughly 30 FPS
 
-    def get_frame(self):
+    def get_frame(self) -> Optional[np.ndarray]:
         """Return the latest captured frame as a BGR numpy array.
 
         Returns ``None`` if no frame has been captured yet.
@@ -49,7 +51,7 @@ class VideoCapture:
                 return None
             return self.frame.copy()
 
-    def release(self):
+    def release(self) -> None:
         """Stop the capture thread and release the camera."""
         self.running = False
         if self.thread:
