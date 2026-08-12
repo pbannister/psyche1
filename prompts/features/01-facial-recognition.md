@@ -29,3 +29,9 @@ The `detect(frame)` method must be available separately and return the list of b
 The `recognize()` method calls `detect()` internally.
 Known‑faces loading must silently skip images that do not contain faces.
 The recogniser is trained only once at startup; no online learning is performed.
+
+## Python-specific requirements
+
+- `opencv-contrib-python>=4.8.0` (provides both Haar cascade and LBPH face recognizer).
+- `numpy>=1.24.0` (used for image array representation and training data).
+- `requests>=2.28.0` (optional; used only for downloading the cascade file; can be replaced with `urllib.request`).
