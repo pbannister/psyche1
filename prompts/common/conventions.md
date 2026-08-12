@@ -16,6 +16,14 @@ These conventions ensure consistency across the codebase and make it easier for 
 - Use `CamelCase` for class names.
 - Use `UPPER_CASE` for constants.
 
+* Use structured naming, so related item sort together.
+    * Do not use single-word names in other than local scope.
+    * As a rule - the larger the scope, the longer the name.
+    * Parts of name become increasingly specific.
+        * Examples: 
+            * window_title_get()
+            * title_size, title_font
+
 ## Project Structure
 
 - `sources/` contains all application source code.
