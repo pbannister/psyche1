@@ -32,22 +32,19 @@ class FaceRecognition:
         if cascade_path is None:
             cascade_path = cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
 
-        # CascadeClassifier may be exposed differently depending on the
-        # OpenCV build.  Try the expected name first, then a fallback.
-        cascade_class = getattr(cv2, "CascadeClassifier", None)
-        if cascade_class is None:
-            # Some builds keep it under cv2.cv2.CascadeClassifier
-            fallback = getattr(cv2, "cv2", None)
-            if fallback is not None:
-                cascade_class = getattr(fallback, "CascadeClassifier", None)
+        # Try the usual attribute first, fall back to the low‑level
+        # extension module that some builds expose as cv2.cv2.
+        try:
+            self.face_cascade = cv2.CascadeClassifier(cascade_path)
+        except AttributeError:
+            try:
+                self.face_cascade = cv2.cv2.CascadeClassifier(cascade_path)
+            except AttributeError:
+                raise RuntimeError(
+                    "OpenCV does not provide CascadeClassifier. "
+                    "Please install opencv-python or opencv-contrib-python."
+                )
 
-        if cascade_class is None:
-            raise RuntimeError(
-                "OpenCV does not provide CascadeClassifier. "
-                "Please install opencv-python or opencv-contrib-python."
-            )
-
-        self.face_cascade = cascade_class(cascade_path)
         if self.face_cascade.empty():
             raise RuntimeError(f"Could not load Haar cascade from {cascade_path}")
 
