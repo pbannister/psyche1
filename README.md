@@ -6,6 +6,7 @@ Project structure:
   * `main_window.py` -- main window UI
   * `audio_io.py` -- asynchronous audio capture/playback
   * `video_capture.py` -- background webcam capture
+  * `face_recognition.py` -- face detection and recognition
 * `prompts/` -- contains project requirements
 
 * `README.md` -- this file

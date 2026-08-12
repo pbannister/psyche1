@@ -13,6 +13,7 @@ from PyQt6.QtWidgets import (
 )
 
 from .audio_io import AudioIO
+from .face_recognition import FaceRecognition
 from .video_capture import VideoCapture
 
 
@@ -30,6 +31,7 @@ class MainWindow(QMainWindow):
 
         self.video_capture = VideoCapture()
         self.audio_io = AudioIO()
+        self.face_recognition = FaceRecognition()
 
         self._init_ui()
 
@@ -107,10 +109,28 @@ class MainWindow(QMainWindow):
         self.stop_video_button.setEnabled(False)
 
     def _update_frame(self) -> None:
-        """Fetch the latest video frame and display it."""
+        """Fetch the latest video frame, run face detection/recognition, and display it."""
         frame = self.video_capture.get_frame()
         if frame is None:
             return
+
+        # Run face detection / recognition on the BGR frame
+        face_results = self.face_recognition.recognize(frame)
+        for result in face_results:
+            x, y, w, h = result["bbox"]
+            name = result["name"]
+            cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+            if name:
+                cv2.putText(
+                    frame,
+                    name,
+                    (x, y - 10),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.6,
+                    (0, 255, 0),
+                    2,
+                    cv2.LINE_AA,
+                )
 
         rgb_image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         h, w, ch = rgb_image.shape

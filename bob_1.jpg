@@ -1,0 +1,25 @@
+
+The recognizer will be trained when the application starts. If no
+`known_faces/` directory exists, detection still works but every face is
+labeled `Unknown`.
+
+## Troubleshooting
+
+### `error: externally-managed-environment`
+
+This error occurs when you try to install Python packages with a Python
+installation that your operating system manages (e.g., the system Python
+on Debian/Ubuntu). To avoid this, always use the project’s virtual
+environment:
+
+- The simplest way is to run `make install`, which creates `.venv/` and
+  installs everything inside it.
+- If you already have a `.venv/` directory, activate it first:
+
+  ```bash
+  source .venv/bin/activate
+  pip install -r requirements.txt
+  ```
+
+- Never use `--break-system-packages` unless you know exactly what you are
+  doing—it can damage your system Python.
