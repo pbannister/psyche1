@@ -1,6 +1,5 @@
 # TODO
 
-* [ ] add unit tests for text-to-speech
 * [ ] add CI pipeline (optional)
 
 ## Completed
@@ -10,6 +9,7 @@
 * [x] add requirements for text-to-speech
 * [x] implement text-to-speech module (`sources/text_to_speech.py`)
 * [x] integrate text-to-speech controls into main window
+* [x] add unit tests for text-to-speech
 * [x] generate project conventions
 * [x] generate project workflow
 * [x] define common requirements
