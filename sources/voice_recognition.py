@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import Callable, Optional
 import json
+import logging
 import os
 import threading
 import urllib.request
@@ -20,6 +21,8 @@ except ImportError:
 
 # RMS above this threshold is considered “voice present”.
 VOICE_THRESHOLD = 0.02
+
+logger = logging.getLogger(__name__)
 
 
 class VoiceRecognition:
@@ -113,6 +116,8 @@ class VoiceRecognition:
         self._transcription_callback = callback
         self._stream_stop_event.clear()
 
+        logger.info("Voice recognition stream started")
+
         self._stream_thread = threading.Thread(
             target=self._stream_worker,
             args=(chunk_duration,),
@@ -126,6 +131,8 @@ class VoiceRecognition:
         if self._stream_thread is not None:
             self._stream_thread.join(timeout=1.0)
         self._stream_thread = None
+
+        logger.info("Voice recognition stream stopped")
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -197,6 +204,9 @@ class VoiceRecognition:
                 if self._transcription_callback:
                     self._transcription_callback(f"[Error] {exc}", True)
                 break
+
+            if text.strip():
+                logger.info("Voice recognized: %s", text)
 
             if self._transcription_callback:
                 self._transcription_callback(text, True)

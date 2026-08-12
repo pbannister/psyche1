@@ -1,4 +1,5 @@
 import argparse
+import logging
 import sys
 
 from PyQt6.QtWidgets import QApplication
@@ -12,6 +13,11 @@ def main() -> None:
     Optionally accept a directory of known faces so the application can
     perform face recognition alongside detection.
     """
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    )
+
     parser = argparse.ArgumentParser(description="Psyche1 desktop application")
     parser.add_argument(
         "--known-faces-dir",

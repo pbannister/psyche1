@@ -1,4 +1,5 @@
 import cv2
+import logging
 from PyQt6.QtCore import QTimer, Qt
 from PyQt6.QtGui import QImage, QPixmap
 from PyQt6.QtWidgets import (
@@ -17,6 +18,8 @@ from .audio_io import AudioIO
 from .face_recognition import FaceRecognition
 from .video_capture import VideoCapture
 from .voice_recognition import VoiceRecognition
+
+logger = logging.getLogger(__name__)
 
 
 class MainWindow(QMainWindow):
@@ -145,6 +148,7 @@ class MainWindow(QMainWindow):
         self._video_timer.start(33)  # ~30 fps
         self.start_video_button.setEnabled(False)
         self.stop_video_button.setEnabled(True)
+        logger.info("Face recognition started")
 
     def stop_video(self) -> None:
         """Stop the webcam capture and clear the displayed frame."""
@@ -154,6 +158,7 @@ class MainWindow(QMainWindow):
         self.video_label.setText("No video")
         self.start_video_button.setEnabled(True)
         self.stop_video_button.setEnabled(False)
+        logger.info("Face recognition stopped")
 
     def _update_frame(self) -> None:
         """Fetch the latest video frame, run face detection/recognition, and display it."""
@@ -177,6 +182,8 @@ class MainWindow(QMainWindow):
                     2,
                     cv2.LINE_AA,
                 )
+                if name != "Unknown":
+                    logger.info("Face recognized: %s", name)
 
         rgb_image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         h, w, ch = rgb_image.shape
@@ -243,6 +250,8 @@ class MainWindow(QMainWindow):
                 "background-color : #444; color: #fff; padding: 8px; font-size: 12px;"
             )
             self.record_button.setText("Stop Recording")
+            logger.info("Voice recognition started")
+            logger.info("Recording started")
         else:
             self.voice_recognizer.stop_stream()
             self.voice_status_label.setText("Idle")
@@ -262,6 +271,8 @@ class MainWindow(QMainWindow):
                 "background-color : #444; color: #fff; padding: 8px; font-size: 12px;"
             )
             self.record_button.setText("Start Recording")
+            logger.info("Voice recognition stopped")
+            logger.info("Recording stopped")
 
     def _on_transcription(self, text: str, has_voice: bool) -> None:
         """Called by the voice recognition thread with each transcribed chunk.
@@ -327,6 +338,7 @@ class MainWindow(QMainWindow):
             self.transcription_label.setStyleSheet(
                 "background-color : #4CAF50; color: white; padding: 8px; font-size: 12px;"
             )
+            logger.info("Voice name: %s", text)
         else:
             self.voice_status_label.setText("Unrecognized voice")
             self.voice_status_label.setStyleSheet(
