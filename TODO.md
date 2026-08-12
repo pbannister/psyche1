@@ -1,5 +1,7 @@
 # TODO
 
+* [ ] make main window more compact
+* [ ] run tests and pass
 * [ ] add CI pipeline (optional)
 
 ## Completed
