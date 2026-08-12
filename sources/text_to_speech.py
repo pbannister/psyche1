@@ -246,7 +246,8 @@ class TextToSpeech:
         """Synthesize ``text`` and play it back (optionally blocking)."""
         self._ensure_available()
         buffer = io.BytesIO()
-        self._get_voice().synthesize(text, buffer)
+        with wave.open(buffer, "wb") as wav_file:
+            self._get_voice().synthesize(text, wav_file)
 
         buffer.seek(0)
         try:
