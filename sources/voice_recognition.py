@@ -60,7 +60,7 @@ class VoiceRecognition:
 
         Raises a descriptive ``RuntimeError`` on failure.
         """
-        if not _genai_AVAILABLE:
+        if not _genai_available:
             raise RuntimeError(
                 "google‑genai library is not installed. "
                 "Speech‑to‑text is unavailable."
@@ -117,22 +117,22 @@ class VoiceRecognition:
         The capturing runs in a daemon thread so it does not prevent the
         application from shutting down.
         """
-        if self._stream_running_event.is_set():
+        if self._stream_stop_event.is_set():
             raise RuntimeError("A voice stream is already running.")
 
         self._transcription_callback = callback
-        self._stream_running_event.clear()
+        self._stream_stop_event.clear()
 
         self._stream_thread = threading.Thread(
             target=self._stream_worker,
-            args=(duration,),
+            args=(chunk_duration,),
             daemon=True,
         )
         self._stream_thread.start()
 
     def stop_stream(self) -> None:
         """Stop the streaming transcription and wait for the thread to finish."""
-        self._stream_running_event.set()
+        self._stream_stop_event.set()
         if self._stream_thread is not None:
             self._stream_thread.join(timeout=1.0)
         self._stream_thread = None
@@ -142,7 +142,7 @@ class VoiceRecognition:
     # ------------------------------------------------------------------
     def _stream_worker(self, chunk_duration: float) -> None:
         """Background loop that records and transcribes chunks."""
-        while not self._stream_running_event.is_set():
+        while not self._stream_stop_event.is_set():
             # Record a fixed‑duration chunk.
             recorded = self.audio.record(chunk_duration)
             if recorded is None:
@@ -152,7 +152,7 @@ class VoiceRecognition:
                 text = self.transcribe(recorded)
             except RuntimeError as exc:
                 # If the API has a permanent problem, stop the stream.
-                self._stream_running_event.set()
+                self._stream_stop_event.set()
                 if self._transcription_callback:
                     self._transcription_callback(f"[Error] {exc}")
                 break
