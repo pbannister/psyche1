@@ -105,8 +105,9 @@ class MainWindow(QMainWindow):
 
         self.voice_status_label = QLabel("Idle")
         self.voice_status_label.setWordWrap(True)
+        self.voice_status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.voice_status_label.setStyleSheet(
-            "background-color: #9E9E9E; color: white; padding: 3px;"
+            "background-color: #9E9E9E; color: white; padding: 8px;"
         )
         voice_layout.addWidget(self.voice_status_label)
 
@@ -218,46 +219,51 @@ class MainWindow(QMainWindow):
 
             self.voice_status_label.setText("Listening…")
             self.voice_status_label.setStyleSheet(
-                "background-color: #2196F3; color: white; padding: 3px;"
+                "background-color: #2196F3; color: white; padding: 8px;"
             )
             self.record_button.setText("Stop Recording")
         else:
             self.voice_recognizer.stop_stream()
             self.voice_status_label.setText("Idle")
             self.voice_status_label.setStyleSheet(
-                "background-color: #9E9E9E; color: white; padding: 3px;"
+                "background-color: #9E9E9E; color: white; padding: 8px;"
             )
             self.record_button.setText("Start Recording")
 
-    def _on_transcription(self, text: str) -> None:
+    def _on_transcription(self, text: str, has_voice: bool) -> None:
         """Called by the voice recognition thread with each transcribed chunk.
 
         The call originates from a background thread, so we schedule the
         UI update on the main thread using QTimer.singleShot.
         """
-        QTimer.singleShot(0, lambda: self._set_transcription(text))
+        QTimer.singleShot(0, lambda: self._set_transcription(text, has_voice))
 
-    def _set_transcription(self, text: str) -> None:
+    def _set_transcription(self, text: str, has_voice: bool) -> None:
         """Update the transcription label and the voice status indicator.
 
         This method runs on the main (GUI) thread.
         """
-        self.transcription_label.setText(text)
+        self.transcription_label.setText(text if text else "")
 
         if text.startswith("[Error]"):
             self.voice_status_label.setText("Error")
             self.voice_status_label.setStyleSheet(
-                "background-color: #F44336; color: white; padding: 3px;"
+                "background-color: #F44336; color: white; padding: 8px;"
+            )
+        elif not has_voice:
+            self.voice_status_label.setText("No voice")
+            self.voice_status_label.setStyleSheet(
+                "background-color: #616161; color: white; padding: 8px;"
             )
         elif text.strip():
-            self.voice_status_label.setText("Recognized")
+            self.voice_status_label.setText("Recognized voice")
             self.voice_status_label.setStyleSheet(
-                "background-color: #4CAF50; color: white; padding: 3px;"
+                "background-color: #4CAF50; color: white; padding: 8px;"
             )
         else:
-            self.voice_status_label.setText("Listening…")
+            self.voice_status_label.setText("Unrecognized voice")
             self.voice_status_label.setStyleSheet(
-                "background-color: #2196F3; color: white; padding: 3px;"
+                "background-color: #FF9800; color: white; padding: 8px;"
             )
 
     def closeEvent(self, event) -> None:

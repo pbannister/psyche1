@@ -18,6 +18,9 @@ except ImportError:
     KaldiRecognizer = None
     _vosk_available = False
 
+# RMS above this threshold is considered “voice present”.
+VOICE_THRESHOLD = 0.02
+
 
 class VoiceRecognition:
     """Transcribe microphone audio using a local Vosk model.
@@ -56,7 +59,7 @@ class VoiceRecognition:
         # Streaming state
         self._stream_thread: Optional[threading.Thread] = None
         self._stream_stop_event = threading.Event()
-        self._transcription_callback: Optional[Callable[[str], None]] = None
+        self._transcription_callback: Optional[Callable[[str, bool], None]] = None
 
     # ------------------------------------------------------------------
     #  Public API
@@ -94,7 +97,7 @@ class VoiceRecognition:
 
     def start_stream(
         self,
-        callback: Callable[[str], None],
+        callback: Callable[[str, bool], None],
         chunk_duration: float = 5.0,
     ) -> None:
         """
@@ -102,7 +105,7 @@ class VoiceRecognition:
 
         For every *chunk_duration* seconds of recorded audio, the current
         chunk is transcribed and *callback* is invoked with the resulting
-        text.
+        text and a boolean indicating whether any voice was present.
         """
         if self._stream_stop_event.is_set():
             raise RuntimeError("A voice stream is already running.")
@@ -177,13 +180,23 @@ class VoiceRecognition:
             if recorded is None:
                 continue
 
+            # Determine if the chunk contains audible sound
+            rms = float(np.sqrt(np.mean(np.square(recorded))))
+            has_voice = rms > VOICE_THRESHOLD
+
+            if not has_voice:
+                # No voice heard — inform the UI without transcribing silence.
+                if self._transcription_callback:
+                    self._transcription_callback("", False)
+                continue
+
             try:
                 text = self.transcribe(recorded)
             except RuntimeError as exc:
                 self._stream_stop_event.set()
                 if self._transcription_callback:
-                    self._transcription_callback(f"[Error] {exc}")
+                    self._transcription_callback(f"[Error] {exc}", True)
                 break
 
             if self._transcription_callback:
-                self._transcription_callback(text)
+                self._transcription_callback(text, True)
