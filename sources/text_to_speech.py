@@ -277,4 +277,8 @@ class TextToSpeech:
         if nchannels > 1:
             audio = audio.reshape(-1, nchannels)
 
-        sd.play(audio, samplerate=framerate, blocking=block)
+        # Always block in this thread so the playback finishes before the
+        # thread exits.  The thread itself is a background daemon thread,
+        # but calling sd.play() with blocking=True keeps it alive until
+        # the audio finishes, ensuring that the sound is actually heard.
+        sd.play(audio, samplerate=framerate, blocking=True)
