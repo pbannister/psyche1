@@ -3,9 +3,11 @@ import logging
 from PyQt6.QtCore import QTimer, Qt
 from PyQt6.QtGui import QImage, QPixmap
 from PyQt6.QtWidgets import (
+    QComboBox,
     QGroupBox,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
     QMainWindow,
     QMessageBox,
     QPushButton,
@@ -16,6 +18,7 @@ from typing import Optional
 
 from .audio_io import AudioIO
 from .face_recognition import FaceRecognition
+from .text_to_speech import TextToSpeech
 from .video_capture import VideoCapture
 from .voice_recognition import VoiceRecognition
 
@@ -25,8 +28,8 @@ logger = logging.getLogger(__name__)
 class MainWindow(QMainWindow):
     """Main window of the Psyche1 application.
 
-    Provides controls for the audio and video capture devices and
-    displays the live webcam feed.
+    Provides controls for the audio and video capture devices,
+    voice recognition, and text-to-speech synthesis.
     """
 
     def __init__(self, known_faces_dir: Optional[str] = None) -> None:
@@ -38,14 +41,15 @@ class MainWindow(QMainWindow):
         self.audio_io = AudioIO()
         self.face_recognition = FaceRecognition(known_faces_dir=known_faces_dir)
 
-        # ─── New: local voice recognition controller ────────────────────
+        # ─── Local voice recognition controller ─────────────────────
         try:
-            # Do not pass the 48 kHz audio_io; VoiceRecognition creates its
-            # own 16 kHz stream for Vosk.
             self.voice_recognizer = VoiceRecognition()
         except Exception as exc:
             self.voice_recognizer = None
             print(f"VoiceRecognition disabled: {exc}")
+
+        # ─── Local text-to-speech engine ────────────────────────────
+        self.tts = TextToSpeech()
 
         self._init_ui()
 
@@ -58,7 +62,7 @@ class MainWindow(QMainWindow):
 
         layout = QVBoxLayout(central_widget)
 
-        # ── Video section ───────────────────────────────────────────────
+        # ── Video section ───────────────────────────────────────────
         video_group = QGroupBox("Video")
         video_layout = QVBoxLayout()
 
@@ -82,7 +86,7 @@ class MainWindow(QMainWindow):
         video_group.setLayout(video_layout)
         layout.addWidget(video_group)
 
-        # ── Audio section ───────────────────────────────────────────────
+        # ── Audio section ───────────────────────────────────────────
         audio_group = QGroupBox("Audio")
         audio_layout = QHBoxLayout()
 
@@ -98,7 +102,7 @@ class MainWindow(QMainWindow):
         audio_group.setLayout(audio_layout)
         layout.addWidget(audio_group)
 
-        # ── Voice section ───────────────────────────────────────────────
+        # ── Voice section ───────────────────────────────────────────
         voice_group = QGroupBox("Voice")
         voice_layout = QVBoxLayout()
 
@@ -134,7 +138,33 @@ class MainWindow(QMainWindow):
         voice_group.setLayout(voice_layout)
         layout.addWidget(voice_group)
 
-    # ── Video controls ──────────────────────────────────────────────────
+        # ── Speech (Text-to-Speech) section ─────────────────────────
+        speech_group = QGroupBox("Speech")
+        speech_layout = QVBoxLayout()
+
+        self.voice_combo = QComboBox()
+        self.voice_combo.currentIndexChanged.connect(self.on_voice_changed)
+        speech_layout.addWidget(self.voice_combo)
+
+        self.tts_text_edit = QLineEdit()
+        self.tts_text_edit.setPlaceholderText("Type text to speak…")
+        speech_layout.addWidget(self.tts_text_edit)
+
+        speech_buttons = QHBoxLayout()
+        self.speak_button = QPushButton("Speak")
+        self.speak_button.clicked.connect(self.speak_text)
+        self.stop_speech_button = QPushButton("Stop")
+        self.stop_speech_button.clicked.connect(self.stop_speech)
+        speech_buttons.addWidget(self.speak_button)
+        speech_buttons.addWidget(self.stop_speech_button)
+        speech_layout.addLayout(speech_buttons)
+
+        speech_group.setLayout(speech_layout)
+        layout.addWidget(speech_group)
+
+        self.populate_voice_combo()
+
+    # ── Video controls ──────────────────────────────────────────────
     def start_video(self) -> None:
         """Start the webcam capture and begin showing frames."""
         if not self.video_capture.cap.isOpened():
@@ -214,7 +244,7 @@ class MainWindow(QMainWindow):
         self.start_audio_button.setEnabled(True)
         self.stop_audio_button.setEnabled(False)
 
-    # ── Voice controls ──────────────────────────────────────────────────
+    # ── Voice controls ──────────────────────────────────────────────
     def toggle_voice_recording(self) -> None:
         if self.voice_recognizer is None:
             QMessageBox.critical(
@@ -357,6 +387,66 @@ class MainWindow(QMainWindow):
                 "background-color : #FF9800; color: white; padding: 8px; font-size: 12px;"
             )
 
+    # ── Speech controls ─────────────────────────────────────────────
+    def populate_voice_combo(self) -> None:
+        """Populate the voice combo box from the local TTS engine.
+
+        If the TTS engine is unavailable, disable the controls and show
+        a descriptive message in the combo box.
+        """
+        try:
+            voices = self.tts.list_voices()
+        except RuntimeError as exc:
+            self.voice_combo.addItem(f"TTS unavailable: {exc}")
+            self.voice_combo.setEnabled(False)
+            self.speak_button.setEnabled(False)
+            self.stop_speech_button.setEnabled(False)
+            self.tts_text_edit.setEnabled(False)
+            return
+
+        if not voices:
+            self.voice_combo.addItem("No voices found")
+            self.voice_combo.setEnabled(False)
+            self.speak_button.setEnabled(False)
+            self.stop_speech_button.setEnabled(False)
+            self.tts_text_edit.setEnabled(False)
+            return
+
+        for voice in voices:
+            self.voice_combo.addItem(voice["name"], voice["id"])
+
+        if self.tts.voice_id:
+            idx = self.voice_combo.findData(self.tts.voice_id)
+            if idx >= 0:
+                self.voice_combo.setCurrentIndex(idx)
+
+    def on_voice_changed(self) -> None:
+        """Handle a change in the selected TTS voice."""
+        voice_id = self.voice_combo.currentData()
+        if not voice_id:
+            return
+        try:
+            self.tts.set_voice(voice_id)
+        except Exception as exc:
+            QMessageBox.critical(self, "Voice Selection", str(exc))
+
+    def speak_text(self) -> None:
+        """Speak the text currently entered in the text field."""
+        text = self.tts_text_edit.text().strip()
+        if not text:
+            return
+        try:
+            self.tts.speak(text)
+        except Exception as exc:
+            QMessageBox.critical(self, "Text to Speech", str(exc))
+
+    def stop_speech(self) -> None:
+        """Stop any currently running speech."""
+        try:
+            self.tts.stop()
+        except Exception:
+            pass
+
     def closeEvent(self, event) -> None:
         """Clean up resources when the window is closed."""
         self._video_timer.stop()
@@ -365,5 +455,8 @@ class MainWindow(QMainWindow):
 
         if self.voice_recognizer is not None:
             self.voice_recognizer.stop_stream()
+
+        if hasattr(self, "tts"):
+            self.tts.stop()
 
         event.accept()
