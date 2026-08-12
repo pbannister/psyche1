@@ -1,16 +1,20 @@
 # Psyche1 Makefile
 # Targets for development workflow
 
-.PHONY: help install run clean format lint test
+.PHONY: help install run clean format lint test venv
 
 help:
 	@echo "Targets:"
+	@echo "  venv     - Create a virtual environment in .venv"
 	@echo "  install  - Install Python dependencies from requirements.txt"
 	@echo "  run      - Run the application (python -m sources.main)"
 	@echo "  clean    - Remove __pycache__, .pyc, .egg-info, build artifacts"
 	@echo "  format   - Run black on sources/ (if installed)"
 	@echo "  lint     - Run flake8 on sources/ (if installed)"
 	@echo "  test     - Run pytest (once tests are written)"
+
+venv:
+	python3 -m venv .venv
 
 install:
 	pip install -r requirements.txt
