@@ -1,10 +1,10 @@
 # TODO
 
-* [ ] update method names to match conventions
 * [ ] add CI pipeline (optional)
 
 ## Completed
 
+* [x] update method names to match conventions
 * [x] add requirements for speech-to-text
 * [x] implement speech-to-text (local Vosk)
 * [x] add requirements for text-to-speech

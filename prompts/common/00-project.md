@@ -22,19 +22,19 @@ It focuses on:
    - Provide a default loopback mode (microphone → speaker).
    - Use a threaded stream so the main application is not blocked.
    - Expose at least the following operations:
-     - `start()` — begin asynchronous duplex streaming.
-     - `stop()` — stop and close the audio stream.
-     - `record(duration)` — record a fixed‑duration clip and return it as a NumPy array.
-     - `play(data)` — play a NumPy audio array asynchronously.
+     - `audio_stream_start()` — begin asynchronous duplex streaming.
+     - `audio_stream_stop()` — stop and close the audio stream.
+     - `audio_record(duration)` — record a fixed‑duration clip and return it as a NumPy array.
+     - `audio_play(data)` — play a NumPy audio array asynchronously.
 
 2. **Video Capture**
    - Use OpenCV (`cv2.VideoCapture`) to read frames from a webcam.
    - Run capture in a background thread to avoid blocking the UI.
    - Protect the current frame with a lock.
    - Expose at least the following operations:
-     - `start()` — begin the background capture thread.
-     - `get_frame()` — return a copy of the latest BGR frame (or `None` before any frame is available).
-     - `release()` — stop the thread and release the camera.
+     - `video_capture_start()` — begin the background capture thread.
+     - `video_frame_get()` — return a copy of the latest BGR frame (or `None` before any frame is available).
+     - `video_capture_release()` — stop the thread and release the camera.
 
 3. **Graphical User Interface**
    - Provide a main window built with PyQt6.
@@ -57,6 +57,7 @@ It focuses on:
   - `sounddevice>=0.4.6`
   - `numpy>=1.24.0`
   - `vosk>=0.3.45`
+  - `piper-tts>=1.2.0`
   - `pydantic>=2.0.0`
   - `pytest>=7.0.0`
 - Use `threading` for all I/O‑bound background work.

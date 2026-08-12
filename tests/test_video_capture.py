@@ -42,7 +42,7 @@ def test_start_starts_daemon_thread(video_capture):
     with patch("sources.video_capture.threading.Thread") as mock_thread:
         mock_thread_instance = MagicMock()
         mock_thread.return_value = mock_thread_instance
-        vc.start()
+        vc.video_capture_start()
         assert vc.running is True
         mock_thread.assert_called_once()
         _, kwargs = mock_thread.call_args
@@ -56,13 +56,13 @@ def test_start_does_nothing_if_already_running(video_capture):
     vc.running = True
     vc.thread = MagicMock()
     with patch("sources.video_capture.threading.Thread") as mock_thread:
-        vc.start()
+        vc.video_capture_start()
         mock_thread.assert_not_called()
 
 
 def test_get_frame_returns_none_when_no_frame(video_capture):
     vc, _, _ = video_capture
-    assert vc.get_frame() is None
+    assert vc.video_frame_get() is None
 
 
 def test_get_frame_returns_copy_of_latest_frame(video_capture):
@@ -70,14 +70,14 @@ def test_get_frame_returns_copy_of_latest_frame(video_capture):
     frame = np.array([[1, 2], [3, 4]], dtype=np.uint8)
     with vc.lock:
         vc.frame = frame
-    result = vc.get_frame()
+    result = vc.video_frame_get()
     np.testing.assert_array_equal(result, frame)
     assert result is not frame
 
 
 def test_release_without_thread_releases_camera(video_capture):
     vc, mock_cap, _ = video_capture
-    vc.release()
+    vc.video_capture_release()
     assert vc.running is False
     mock_cap.release.assert_called_once_with()
 
@@ -86,7 +86,7 @@ def test_release_with_thread_stops_and_releases(video_capture):
     vc, mock_cap, _ = video_capture
     vc.running = True
     vc.thread = MagicMock()
-    vc.release()
+    vc.video_capture_release()
     assert vc.running is False
     vc.thread.join.assert_called_once_with(timeout=1.0)
     mock_cap.release.assert_called_once_with()

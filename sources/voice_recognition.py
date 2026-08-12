@@ -46,15 +46,15 @@ class VoiceRecognition:
     # ------------------------------------------------------------------
     #  Public API
     # ------------------------------------------------------------------
-    def transcribe(self, data: np.ndarray) -> str:
+    def speech_transcribe(self, data: np.ndarray) -> str:
         """Transcribe a 16 kHz float32 NumPy array and return the text.
 
         Raises a descriptive ``RuntimeError`` if Vosk or the model cannot
         be loaded.
         """
-        return self.stt.transcribe(data)
+        return self.stt.speech_transcribe(data)
 
-    def start_stream(
+    def voice_stream_start(
         self,
         callback: Callable[[str, bool], None],
         chunk_duration: float = 5.0,
@@ -81,7 +81,7 @@ class VoiceRecognition:
         )
         self._stream_thread.start()
 
-    def stop_stream(self) -> None:
+    def voice_stream_stop(self) -> None:
         """Stop the streaming transcription and wait for the thread to finish."""
         self._stream_stop_event.set()
         if self._stream_thread is not None:
@@ -96,7 +96,7 @@ class VoiceRecognition:
     def _stream_worker(self, chunk_duration: float) -> None:
         """Background loop that records and transcribes chunks."""
         while not self._stream_stop_event.is_set():
-            recorded = self.audio.record(chunk_duration)
+            recorded = self.audio.audio_record(chunk_duration)
             if recorded is None:
                 continue
 
@@ -111,7 +111,7 @@ class VoiceRecognition:
                 continue
 
             try:
-                text = self.transcribe(recorded)
+                text = self.speech_transcribe(recorded)
             except RuntimeError as exc:
                 self._stream_stop_event.set()
                 if self._transcription_callback:

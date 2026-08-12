@@ -10,7 +10,7 @@ class VideoCapture:
     """Webcam capture using OpenCV with a background thread.
 
     Frames are read continuously without blocking the main thread.
-    Use :meth:`get_frame` to retrive the latest frame.
+    Use :meth:`video_frame_get` to retrieve the latest frame.
     """
 
     def __init__(self, camera_index: int = 0, width: int | None = None, height: int | None = None):
@@ -24,7 +24,7 @@ class VideoCapture:
         self.running = False
         self.thread = None
 
-    def start(self) -> None:
+    def video_capture_start(self) -> None:
         """Start the background capture thread."""
         if self.running:
             return
@@ -41,7 +41,7 @@ class VideoCapture:
                 self.frame = frame
             time.sleep(0.03)  # roughly 30 FPS
 
-    def get_frame(self) -> Optional[np.ndarray]:
+    def video_frame_get(self) -> Optional[np.ndarray]:
         """Return the latest captured frame as a BGR numpy array.
 
         Returns ``None`` if no frame has been captured yet.
@@ -51,7 +51,7 @@ class VideoCapture:
                 return None
             return self.frame.copy()
 
-    def release(self) -> None:
+    def video_capture_release(self) -> None:
         """Stop the capture thread and release the camera."""
         self.running = False
         if self.thread:

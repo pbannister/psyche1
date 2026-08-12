@@ -38,15 +38,15 @@ that distinguishes silence, unrecognised speech, and recognised speech.
 - Provide a `VoiceRecognition` class in a new file `sources/voice_recognition.py`.
 - Constructor accepts an optional `AudioIO` instance, an optional
   `model_path` parameter, and an optional `language` parameter.
-- `transcribe(data: np.ndarray) -> str`
+- `speech_transcribe(data: np.ndarray) -> str`
   - Accept a float32 NumPy array of audio samples (16k Hz, mono).
   - Return a single string containing the best transcription.
   - Raise a descriptive exception on failure.
-- `start_stream(callback: Callable[[str, bool], None]) -> None`
+- `voice_stream_start(callback: Callable[[str, bool], None]) -> None`
   - Begin capturing audio in a continuous streaming fashion.
   - For each chunk of audio, invoke the callback with the transcribed text
     and a boolean indicating whether any voice was present.
-- `stop_stream() -> None`
+- `voice_stream_stop() -> None`
   - Stop the streaming audio capture and any running transcription task.
 
 ## UI integration

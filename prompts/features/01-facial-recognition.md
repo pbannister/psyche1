@@ -23,13 +23,13 @@ Support both detection only and detection plus recognition modes.
 
 ## API
 
-- Expose a `recognize(frame)` method that accepts a BGR frame and returns a list of result dictionaries.
+- Expose a `face_recognize(frame)` method that accepts a BGR frame and returns a list of result dictionaries.
 - Each result dictionary contains the keys `bbox`, `name`, and `confidence`.
 - The `bbox` value is a tuple `(x, y, w, h)`.
 - The `name` value is a string.
 - The `confidence` value is either a float or `None` when no known faces are loaded.
-- The `detect(frame)` method must be available separately and return the list of boxes.
-- The `recognize()` method calls `detect()` internally.
+- The `face_detect(frame)` method must be available separately and return the list of boxes.
+- The `face_recognize()` method calls `face_detect()` internally.
 
 ## Cascade file location
 

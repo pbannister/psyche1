@@ -16,14 +16,14 @@ def fake_sd():
 
 
 def _get_callback(fake_sd, audio):
-    audio.start()
+    audio.audio_stream_start()
     args, kwargs = fake_sd.Stream.call_args
     return kwargs["callback"]
 
 
 def test_start_creates_stream_with_desired_parameters(fake_sd):
     audio = AudioIO(sample_rate=16000, channels=2)
-    audio.start()
+    audio.audio_stream_start()
     args, kwargs = fake_sd.Stream.call_args
     assert kwargs["samplerate"] == 16000
     assert kwargs["channels"] == 2
@@ -35,16 +35,16 @@ def test_start_creates_stream_with_desired_parameters(fake_sd):
 
 def test_start_twice_raises(fake_sd):
     audio = AudioIO()
-    audio.start()
+    audio.audio_stream_start()
     with pytest.raises(RuntimeError, match="already running"):
-        audio.start()
+        audio.audio_stream_start()
 
 
 def test_stop_when_running(fake_sd):
     audio = AudioIO()
-    audio.start()
+    audio.audio_stream_start()
     stream = fake_sd.Stream.return_value
-    audio.stop()
+    audio.audio_stream_stop()
     stream.stop.assert_called_once_with()
     stream.close.assert_called_once_with()
     assert audio.stream is None
@@ -53,7 +53,7 @@ def test_stop_when_running(fake_sd):
 
 def test_stop_when_not_running_does_nothing(fake_sd):
     audio = AudioIO()
-    audio.stop()
+    audio.audio_stream_stop()
     fake_sd.Stream.assert_not_called()
 
 
@@ -61,7 +61,7 @@ def test_record_uses_sd_rec_and_returns_array(fake_sd):
     audio = AudioIO(sample_rate=8000, channels=1)
     expected = np.zeros((4000, 1), dtype=np.float32)
     fake_sd.rec.return_value = expected
-    result = audio.record(0.5)
+    result = audio.audio_record(0.5)
     args, kwargs = fake_sd.rec.call_args
     assert args[0] == 4000
     assert kwargs["samplerate"] == 8000
@@ -73,7 +73,7 @@ def test_record_uses_sd_rec_and_returns_array(fake_sd):
 def test_play_calls_sd_play(fake_sd):
     audio = AudioIO(sample_rate=8000, channels=1)
     data = np.zeros((100, 1), dtype=np.float32)
-    audio.play(data)
+    audio.audio_play(data)
     fake_sd.play.assert_called_once_with(data, samplerate=8000, blocking=False)
 
 
@@ -126,7 +126,7 @@ def test_callback_reports_overflow(fake_sd, capsys):
 
 def test_start_with_input_callback(fake_sd):
     audio = AudioIO()
-    audio.start(input_callback=lambda indata: indata * 2)
+    audio.audio_stream_start(input_callback=lambda indata: indata * 2)
     callback = fake_sd.Stream.call_args.kwargs["callback"]
     indata = np.ones((4, 1), dtype=np.float32)
     outdata = np.zeros((4, 1), dtype=np.float32)
@@ -136,7 +136,7 @@ def test_start_with_input_callback(fake_sd):
 
 def test_start_with_output_callback(fake_sd):
     audio = AudioIO()
-    audio.start(output_callback=lambda frames: np.full((frames, 1), 5.0, dtype=np.float32))
+    audio.audio_stream_start(output_callback=lambda frames: np.full((frames, 1), 5.0, dtype=np.float32))
     callback = fake_sd.Stream.call_args.kwargs["callback"]
     outdata = np.zeros((4, 1), dtype=np.float32)
     callback(np.zeros((4, 1), dtype=np.float32), outdata, 4, None, None)
@@ -148,7 +148,7 @@ def test_missing_portaudio_raises_on_start():
          patch("sources.audio_io._SD_IMPORT_ERROR", OSError("PortAudio library missing")):
         audio = AudioIO()
         with pytest.raises(RuntimeError, match="PortAudio library not found"):
-            audio.start()
+            audio.audio_stream_start()
 
 
 def test_missing_portaudio_raises_on_record():
@@ -156,7 +156,7 @@ def test_missing_portaudio_raises_on_record():
          patch("sources.audio_io._SD_IMPORT_ERROR", OSError("PortAudio library missing")):
         audio = AudioIO()
         with pytest.raises(RuntimeError, match="PortAudio library not found"):
-            audio.record(1.0)
+            audio.audio_record(1.0)
 
 
 def test_missing_portaudio_raises_on_play():
@@ -164,4 +164,4 @@ def test_missing_portaudio_raises_on_play():
          patch("sources.audio_io._SD_IMPORT_ERROR", OSError("PortAudio library missing")):
         audio = AudioIO()
         with pytest.raises(RuntimeError, match="PortAudio library not found"):
-            audio.play(np.zeros((4, 1), dtype=np.float32))
+            audio.audio_play(np.zeros((4, 1), dtype=np.float32))

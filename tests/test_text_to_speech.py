@@ -63,7 +63,7 @@ def test_list_voices_includes_builtin_and_custom(setup_env):
     )
 
     tts = TextToSpeech()
-    voices = tts.list_voices()
+    voices = tts.voices_list_get()
     ids = [v["id"] for v in voices]
 
     assert "en_US-lessac-medium" in ids
@@ -75,21 +75,21 @@ def test_list_voices_includes_builtin_and_custom(setup_env):
 
 def test_set_voice_valid(setup_env):
     tts = TextToSpeech()
-    tts.set_voice("en_US-lessac-medium")
+    tts.voice_set("en_US-lessac-medium")
     assert tts.voice_id == "en_US-lessac-medium"
 
 
 def test_set_voice_invalid_raises(setup_env):
     tts = TextToSpeech()
     with pytest.raises(ValueError, match="not found"):
-        tts.set_voice("unknown")
+        tts.voice_set("unknown")
 
 
 def test_speak_blocking_calls_piper_and_sd(setup_env):
     fake_piper, fake_sd, _ = setup_env
 
     tts = TextToSpeech()
-    tts.speak("hello", block=True)
+    tts.speech_speak("hello", block=True)
 
     fake_piper.PiperVoice.load.assert_called_once()
     fake_sd.play.assert_called_once()
@@ -107,7 +107,7 @@ def test_speak_non_blocking_starts_thread(setup_env):
         thread_instance = MagicMock()
         mock_thread.return_value = thread_instance
 
-        tts.speak("hello", block=False)
+        tts.speech_speak("hello", block=False)
 
         mock_thread.assert_called_once()
         _, kwargs = mock_thread.call_args
@@ -120,7 +120,7 @@ def test_stop_calls_sd_stop(setup_env):
     fake_piper, fake_sd, _ = setup_env
 
     tts = TextToSpeech()
-    tts.stop()
+    tts.speech_stop()
 
     fake_sd.stop.assert_called_once()
 
@@ -129,7 +129,7 @@ def test_missing_piper_raises_on_speak():
     with patch("sources.text_to_speech._PIPER_AVAILABLE", False):
         tts = TextToSpeech()
         with pytest.raises(RuntimeError, match="Piper is not installed"):
-            tts.speak("hello")
+            tts.speech_speak("hello")
 
 
 def test_missing_sd_raises_on_speak():
@@ -138,4 +138,4 @@ def test_missing_sd_raises_on_speak():
     ):
         tts = TextToSpeech()
         with pytest.raises(RuntimeError, match="sounddevice"):
-            tts.speak("hello")
+            tts.speech_speak("hello")

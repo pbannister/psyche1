@@ -58,8 +58,7 @@ class SpeechToText:
 
         self._model = None
 
-    @property
-    def model(self) -> "Model":
+    def model_get(self) -> "Model":
         """Return the loaded Vosk model, loading it on first access."""
         if self._model is None:
             self._ensure_model()
@@ -118,7 +117,7 @@ class SpeechToText:
                 f"at {self.model_path}. Please check the download."
             )
 
-    def transcribe(self, data: np.ndarray) -> str:
+    def speech_transcribe(self, data: np.ndarray) -> str:
         """Transcribe a 16 kHz mono float32 array and return the recognised text.
 
         Args:
@@ -142,7 +141,7 @@ class SpeechToText:
             raise RuntimeError(f"Failed to convert audio to PCM: {exc}") from exc
 
         try:
-            rec = KaldiRecognizer(self.model, 16000)
+            rec = KaldiRecognizer(self.model_get(), 16000)
             rec.AcceptWaveform(pcm_bytes)
             result = json.loads(rec.FinalResult())
             return result.get("text", "").strip()

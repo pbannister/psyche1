@@ -110,7 +110,7 @@ class TextToSpeech:
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
-    def list_voices(self) -> list[dict]:
+    def voices_list_get(self) -> list[dict]:
         """Return all available voices as a list of ``{'id', 'name'}``."""
         if self._voice_list is None:
             voices = {vid: info["name"] for vid, info in BUILTIN_VOICES.items()}
@@ -139,23 +139,23 @@ class TextToSpeech:
             ]
         return list(self._voice_list)
 
-    def set_voice(self, voice_id: str) -> None:
+    def voice_set(self, voice_id: str) -> None:
         """Set the current voice by identifier.
 
         Args:
-            voice_id: Voice identifier as returned by :meth:`list_voices`.
+            voice_id: Voice identifier as returned by :meth:`voices_list_get`.
 
         Raises:
             ValueError: If ``voice_id`` is not found in the available voices.
         """
-        voices = self.list_voices()
+        voices = self.voices_list_get()
         if not any(v["id"] == voice_id for v in voices):
             raise ValueError(f"Voice '{voice_id}' not found.")
         self.voice_id = voice_id
         # Force the voice to be re-loaded on next speak().
         self._voice = None
 
-    def speak(self, text: str, block: bool = False) -> None:
+    def speech_speak(self, text: str, block: bool = False) -> None:
         """Speak the given text.
 
         Args:
@@ -174,7 +174,7 @@ class TextToSpeech:
                 daemon=True,
             ).start()
 
-    def stop(self) -> None:
+    def speech_stop(self) -> None:
         """Stop any currently playing audio."""
         if _SD_AVAILABLE:
             try:

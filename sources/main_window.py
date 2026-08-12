@@ -74,9 +74,9 @@ class MainWindow(QMainWindow):
 
         video_buttons = QHBoxLayout()
         self.start_video_button = QPushButton("Start Camera")
-        self.start_video_button.clicked.connect(self.start_video)
+        self.start_video_button.clicked.connect(self.video_start)
         self.stop_video_button = QPushButton("Stop Camera")
-        self.stop_video_button.clicked.connect(self.stop_video)
+        self.stop_video_button.clicked.connect(self.video_stop)
         self.stop_video_button.setEnabled(False)
 
         video_buttons.addWidget(self.start_video_button)
@@ -91,9 +91,9 @@ class MainWindow(QMainWindow):
         audio_layout = QHBoxLayout()
 
         self.start_audio_button = QPushButton("Start Audio")
-        self.start_audio_button.clicked.connect(self.start_audio)
+        self.start_audio_button.clicked.connect(self.audio_start)
         self.stop_audio_button = QPushButton("Stop Audio")
-        self.stop_audio_button.clicked.connect(self.stop_audio)
+        self.stop_audio_button.clicked.connect(self.audio_stop)
         self.stop_audio_button.setEnabled(False)
 
         audio_layout.addWidget(self.start_audio_button)
@@ -107,7 +107,7 @@ class MainWindow(QMainWindow):
         voice_layout = QVBoxLayout()
 
         self.record_button = QPushButton("Start Recording")
-        self.record_button.clicked.connect(self.toggle_voice_recording)
+        self.record_button.clicked.connect(self.voice_recording_toggle)
         voice_layout.addWidget(self.record_button)
 
         self.voice_status_label = QLabel("Press Record to start")
@@ -143,7 +143,7 @@ class MainWindow(QMainWindow):
         speech_layout = QVBoxLayout()
 
         self.voice_combo = QComboBox()
-        self.voice_combo.currentIndexChanged.connect(self.on_voice_changed)
+        self.voice_combo.currentIndexChanged.connect(self.voice_selection_changed)
         speech_layout.addWidget(self.voice_combo)
 
         self.tts_text_edit = QLineEdit()
@@ -152,9 +152,9 @@ class MainWindow(QMainWindow):
 
         speech_buttons = QHBoxLayout()
         self.speak_button = QPushButton("Speak")
-        self.speak_button.clicked.connect(self.speak_text)
+        self.speak_button.clicked.connect(self.speech_speak_clicked)
         self.stop_speech_button = QPushButton("Stop")
-        self.stop_speech_button.clicked.connect(self.stop_speech)
+        self.stop_speech_button.clicked.connect(self.speech_stop_clicked)
         speech_buttons.addWidget(self.speak_button)
         speech_buttons.addWidget(self.stop_speech_button)
         speech_layout.addLayout(speech_buttons)
@@ -162,10 +162,10 @@ class MainWindow(QMainWindow):
         speech_group.setLayout(speech_layout)
         layout.addWidget(speech_group)
 
-        self.populate_voice_combo()
+        self.voice_combo_populate()
 
     # ── Video controls ──────────────────────────────────────────────
-    def start_video(self) -> None:
+    def video_start(self) -> None:
         """Start the webcam capture and begin showing frames."""
         if not self.video_capture.cap.isOpened():
             self.video_capture = VideoCapture()
@@ -174,16 +174,16 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(self, "Camera Error", "Could not open the camera.")
             return
 
-        self.video_capture.start()
+        self.video_capture.video_capture_start()
         self._video_timer.start(33)  # ~30 fps
         self.start_video_button.setEnabled(False)
         self.stop_video_button.setEnabled(True)
         logger.info("Face recognition started")
 
-    def stop_video(self) -> None:
+    def video_stop(self) -> None:
         """Stop the webcam capture and clear the displayed frame."""
         self._video_timer.stop()
-        self.video_capture.release()
+        self.video_capture.video_capture_release()
         self.video_label.clear()
         self.video_label.setText("No video")
         self.start_video_button.setEnabled(True)
@@ -192,11 +192,11 @@ class MainWindow(QMainWindow):
 
     def _update_frame(self) -> None:
         """Fetch the latest video frame, run face detection/recognition, and display it."""
-        frame = self.video_capture.get_frame()
+        frame = self.video_capture.video_frame_get()
         if frame is None:
             return
 
-        face_results = self.face_recognition.recognize(frame)
+        face_results = self.face_recognition.face_recognize(frame)
         for result in face_results:
             x, y, w, h = result["bbox"]
             name = result["name"]
@@ -227,10 +227,10 @@ class MainWindow(QMainWindow):
         )
         self.video_label.setPixmap(QPixmap.fromImage(qt_image))
 
-    def start_audio(self) -> None:
+    def audio_start(self) -> None:
         """Start the microphone‑to‑speaker audio loopback."""
         try:
-            self.audio_io.start()
+            self.audio_io.audio_stream_start()
         except Exception as exc:
             QMessageBox.critical(self, "Audio Error", str(exc))
             return
@@ -238,14 +238,14 @@ class MainWindow(QMainWindow):
         self.start_audio_button.setEnabled(False)
         self.stop_audio_button.setEnabled(True)
 
-    def stop_audio(self) -> None:
+    def audio_stop(self) -> None:
         """Stop the audio loopback stream."""
-        self.audio_io.stop()
+        self.audio_io.audio_stream_stop()
         self.start_audio_button.setEnabled(True)
         self.stop_audio_button.setEnabled(False)
 
     # ── Voice controls ──────────────────────────────────────────────
-    def toggle_voice_recording(self) -> None:
+    def voice_recording_toggle(self) -> None:
         if self.voice_recognizer is None:
             QMessageBox.critical(
                 self,
@@ -258,7 +258,7 @@ class MainWindow(QMainWindow):
 
         if self.record_button.text() == "Start Recording":
             try:
-                self.voice_recognizer.start_stream(self._on_transcription)
+                self.voice_recognizer.voice_stream_start(self._on_transcription)
             except Exception as exc:
                 QMessageBox.critical(self, "Voice Recognition", str(exc))
                 return
@@ -283,7 +283,7 @@ class MainWindow(QMainWindow):
             logger.info("Voice recognition started")
             logger.info("Recording started")
         else:
-            self.voice_recognizer.stop_stream()
+            self.voice_recognizer.voice_stream_stop()
             self.voice_status_label.setText("Idle")
             self.voice_status_label.setStyleSheet(
                 """
@@ -388,14 +388,14 @@ class MainWindow(QMainWindow):
             )
 
     # ── Speech controls ─────────────────────────────────────────────
-    def populate_voice_combo(self) -> None:
+    def voice_combo_populate(self) -> None:
         """Populate the voice combo box from the local TTS engine.
 
         If the TTS engine is unavailable, disable the controls and show
         a descriptive message in the combo box.
         """
         try:
-            voices = self.tts.list_voices()
+            voices = self.tts.voices_list_get()
         except RuntimeError as exc:
             self.voice_combo.addItem(f"TTS unavailable: {exc}")
             self.voice_combo.setEnabled(False)
@@ -420,43 +420,43 @@ class MainWindow(QMainWindow):
             if idx >= 0:
                 self.voice_combo.setCurrentIndex(idx)
 
-    def on_voice_changed(self) -> None:
+    def voice_selection_changed(self) -> None:
         """Handle a change in the selected TTS voice."""
         voice_id = self.voice_combo.currentData()
         if not voice_id:
             return
         try:
-            self.tts.set_voice(voice_id)
+            self.tts.voice_set(voice_id)
         except Exception as exc:
             QMessageBox.critical(self, "Voice Selection", str(exc))
 
-    def speak_text(self) -> None:
+    def speech_speak_clicked(self) -> None:
         """Speak the text currently entered in the text field."""
         text = self.tts_text_edit.text().strip()
         if not text:
             return
         try:
-            self.tts.speak(text)
+            self.tts.speech_speak(text)
         except Exception as exc:
             QMessageBox.critical(self, "Text to Speech", str(exc))
 
-    def stop_speech(self) -> None:
+    def speech_stop_clicked(self) -> None:
         """Stop any currently running speech."""
         try:
-            self.tts.stop()
+            self.tts.speech_stop()
         except Exception:
             pass
 
     def closeEvent(self, event) -> None:
         """Clean up resources when the window is closed."""
         self._video_timer.stop()
-        self.video_capture.release()
-        self.audio_io.stop()
+        self.video_capture.video_capture_release()
+        self.audio_io.audio_stream_stop()
 
         if self.voice_recognizer is not None:
-            self.voice_recognizer.stop_stream()
+            self.voice_recognizer.voice_stream_stop()
 
         if hasattr(self, "tts"):
-            self.tts.stop()
+            self.tts.speech_stop()
 
         event.accept()

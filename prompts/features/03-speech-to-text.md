@@ -37,12 +37,12 @@ re‑use of the loaded language model across multiple calls.
 - Provide a class ``SpeechToText`` in a new file ``sources/speech_to_text.py``.
 - Constructor accepts an optional ``model_path`` parameter and an optional
   ``language`` parameter.
-- ``transcribe(data: np.ndarray) -> str``
+- ``speech_transcribe(data: np.ndarray) -> str``
   - Accept a 16 kHz mono float32 NumPy array.
   - Return the best transcription string.
   - Raise a ``RuntimeError`` with a descriptive message on failure.
-- The class may also expose a ``model`` attribute that other consumers
-  can inspect.
+- The class may also expose a ``model_get()`` method that returns the
+  loaded Vosk model, loading it on first access.
 
 ## Integration
 

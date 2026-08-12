@@ -41,16 +41,16 @@ The identifier is the file name without the `.onnx` extension.
 
 - Provide a class `TextToSpeech` in a new file `sources/text_to_speech.py`.
 - Constructor accepts an optional `voice_id` parameter.
-- `list_voices() -> list[dict]`
+- `voices_list_get() -> list[dict]`
   - Return a list of dictionaries with keys `id` and `name`.
-- `set_voice(voice_id: str) -> None`
+- `voice_set(voice_id: str) -> None`
   - Set the current voice to the given identifier.
   - Raise a `ValueError` if the identifier is not found.
-- `speak(text: str, block: bool = False) -> None`
+- `speech_speak(text: str, block: bool = False) -> None`
   - Speak the given text.
   - If `block` is `True`, wait until speech finishes before returning.
   - If `block` is `False`, start speech in a background thread and return immediately.
-- `stop() -> None`
+- `speech_stop() -> None`
   - Stop any currently running speech.
 - The class may expose a `voice_id` attribute that reflects the current voice.
 
@@ -60,8 +60,8 @@ The identifier is the file name without the `.onnx` extension.
 - Inside it, place:
   - A `QComboBox` listing available voices.
   - A `QLineEdit` for entering text.
-  - A "Speak" button that triggers `speak(text)`.
-  - A "Stop" button that triggers `stop()`.
+  - A "Speak" button that triggers `speech_speak(text)`.
+  - A "Stop" button that triggers `speech_stop()`.
 - Populate the voice combo box when the window is created.
 - If the TTS engine is unavailable, disable the controls and show a clear error message.
 

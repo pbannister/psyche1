@@ -103,7 +103,7 @@ class FaceRecognition:
         self.labels: Dict[int, str] = {}
 
         if known_faces_dir is not None:
-            self.load_known_faces(known_faces_dir)
+            self.known_faces_load(known_faces_dir)
 
     # -----------------------------------------------------------------
     # Helper that downloads the cascade XML from the OpenCV repository
@@ -135,7 +135,7 @@ class FaceRecognition:
 
     # -----------------------------------------------------------------
 
-    def load_known_faces(self, directory: str) -> None:
+    def known_faces_load(self, directory: str) -> None:
         """Train the recognizer from a directory of person-named subfolders."""
         if self.recognizer is None:
             print(
@@ -181,7 +181,7 @@ class FaceRecognition:
         self.recognizer.train(faces, np.array(labels))
         self.ready = True
 
-    def detect(self, frame: np.ndarray) -> List[Tuple[int, int, int, int]]:
+    def face_detect(self, frame: np.ndarray) -> List[Tuple[int, int, int, int]]:
         """Return bounding boxes of all detected faces as (x, y, w, h)."""
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         faces = self.face_cascade.detectMultiScale(
@@ -192,7 +192,7 @@ class FaceRecognition:
         )
         return [(int(x), int(y), int(w), int(h)) for (x, y, w, h) in faces]
 
-    def recognize(self, frame: np.ndarray) -> List[dict]:
+    def face_recognize(self, frame: np.ndarray) -> List[dict]:
         """Detect faces and return info for each face.
 
         Each dictionary contains ``bbox``, ``name`` and ``confidence``.
@@ -201,7 +201,7 @@ class FaceRecognition:
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         results = []
 
-        for x, y, w, h in self.detect(frame):
+        for x, y, w, h in self.face_detect(frame):
             roi = gray[y: y + h, x: x + w]
             name = "Unknown"
             confidence = None
