@@ -31,6 +31,10 @@ class AudioIO:
     If the underlying PortAudio library is missing, constructing this
     class still succeeds but every audio method raises a RuntimeError
     with installation instructions.
+
+    The stream uses a fixed block size of 1024 frames to reduce the
+    likelihood of input underflow warnings.  Benign underflow warnings
+    are ignored; only actual overflow errors are printed.
     """
 
     def __init__(self, sample_rate: int = 44100, channels: int = 1):
@@ -55,7 +59,9 @@ class AudioIO:
 
         def callback(indata, outdata, frames, time_info, status):
             if status:
-                print(f"Audio status: {status}")
+                # Ignore benign underflow warnings; only report actual errors.
+                if status.input_overflow or status.output_overflow:
+                    print(f"Audio error: {status}")
 
             if input_callback is not None:
                 processed = input_callback(indata.copy())
@@ -74,6 +80,7 @@ class AudioIO:
                 channels=self.channels,
                 callback=callback,
                 dtype="float32",
+                blocksize=1024,
             )
             self.stream.start()
             self._is_running = True
