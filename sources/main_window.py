@@ -16,6 +16,7 @@ from typing import Optional
 from .audio_io import AudioIO
 from .face_recognition import FaceRecognition
 from .video_capture import VideoCapture
+from .voice_recognition import VoiceRecognition  # <-- import new module
 
 
 class MainWindow(QMainWindow):
@@ -34,6 +35,14 @@ class MainWindow(QMainWindow):
         self.audio_io = AudioIO()
         self.face_recognition = FaceRecognition(known_faces_dir=known_faces_dir)
 
+        # ─── New: voice recognition controller ──────────────────────────
+        try:
+            self.voice_recognizer = VoiceRecognition(audio_io=self.audio_io)
+        except Exception as exc:
+            # If google‑genai is missing, we still want the GUI to start.
+            self.voice_recognizer = None
+            print(f"VoiceRecognition disabled: {exc}")
+
         self._init_ui()
 
         self._video_timer = QTimer(self)
@@ -45,7 +54,7 @@ class MainWindow(QMainWindow):
 
         layout = QVBoxLayout(central_widget)
 
-        # Video section
+        # ── Video section ───────────────────────────────────────────────
         video_group = QGroupBox("Video")
         video_layout = QVBoxLayout()
 
@@ -69,7 +78,7 @@ class MainWindow(QMainWindow):
         video_group.setLayout(video_layout)
         layout.addWidget(video_group)
 
-        # Audio section
+        # ── Audio section ───────────────────────────────────────────────
         audio_group = QGroupBox("Audio")
         audio_layout = QHBoxLayout()
 
@@ -85,6 +94,26 @@ class MainWindow(QMainWindow):
         audio_group.setLayout(audio_layout)
         layout.addWidget(audio_group)
 
+        # ── Voice section (new) ────────────────────────────────────────
+        voice_group = QGroupBox("Voice")
+        voice_layout = QVBoxLayout()
+
+        self.record_button = QPushButton("Start Recording")
+        self.record_button.clicked.connect(self.toggle_voice_recording)
+        voice_layout.addWidget(self.record_button)
+
+        self.transcription_label = QLabel("")
+        self.transcription_label.setWordWrap(True)
+        self.transcription_label.setStyleSheet(
+            "background-color : #222; color: #fff; padding: 5px;"
+        )
+        self.transcription_label.setMinimumHeight(40)
+        voice_layout.addWidget(self.transcription_label)
+
+        voice_group.setLayout(voice_layout)
+        layout.addWidget(voice_group)
+
+    # ── Video controls ──────────────────────────────────────────────────
     def start_video(self) -> None:
         """Start the webcam capture and begin showing frames."""
         # If the camera was previously stopped, recreate the capture object
@@ -109,7 +138,7 @@ class MainWindow(QMainWindow):
         self.start_video_button.setEnabled(True)
         self.stop_video_button.setEnabled(False)
 
-    def _update_frame(self) -> None:
+    def _update_frame_(self) -> None:
         """Fetch the latest video frame, run face detection/recognition, and display it."""
         frame = self.video_capture.get_frame()
         if frame is None:
@@ -146,7 +175,7 @@ class MainWindow(QMainWindow):
         self.video_label.setPixmap(QPixmap.fromImage(qt_image))
 
     def start_audio(self) -> None:
-        """Start the microphone-to-speaker audio loopback."""
+        """Start the microphone‑to‑speaker audio loopback."""
         try:
             self.audio_io.start()
         except Exception as exc:
@@ -162,9 +191,47 @@ class MainWindow(QMainWindow):
         self.start_audio_button.setEnabled(True)
         self.stop_audio_button.setEnabled(False)
 
+    # ── Voice controls ──────────────────────────────────────────────────
+    def toggle_voice_recording(self) -> None:
+        if self.voice_recognizer is None:
+            QMessageBox.critical(
+                self,
+                "Voice Recognition",
+                "Voice recognition is not available (google‑genai missing or "
+                "misconfigured).\nPlease install the package and set the "
+                "``GENAI_API_KEY`` environment variable.",
+            )
+            return
+
+        if self.record_button.text() == "Start Recording":
+            # Start streaming transcription
+            try:
+                self.voice_recognizer.start_stream(
+                    self._on_transcription,
+                )
+            except Exception as exc:
+                QMessageBox.critical(self, "Voice Recognition", str(exc))
+                return
+
+            self.record_button.setText("Stop Recording")
+        else:
+            # Stop recording
+            self.voice_recognizer.stop_stream()
+            self.record_button.setText("Start Recording")
+
+    def _on_transcription(self, text: str) -> None:
+        """Called by the voice recognition thread with each transcribed chunk."""
+        # Must update the UI from the main (GUI) thread.
+        self.transcription_label.setText(text)
+
     def closeEvent(self, event) -> None:
         """Clean up resources when the window is closed."""
         self._video_timer.stop()
         self.video_capture.release()
         self.audio_io.stop()
+
+        # Stop voice streaming if active
+        if self.voice_recognizer is not None:
+            self.voice_recognizer.stop_stream()
+
         event.accept()
