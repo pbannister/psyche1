@@ -1,6 +1,6 @@
 # TODO
 
-* [ ] implement facial recognition
+* [x] implement facial recognition
 
 * [ ] define requirements for voice recognition
 * [ ] implement voice recognition

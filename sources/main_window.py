@@ -11,6 +11,7 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from typing import Optional
 
 from .audio_io import AudioIO
 from .face_recognition import FaceRecognition
@@ -24,14 +25,14 @@ class MainWindow(QMainWindow):
     displays the live webcam feed.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, known_faces_dir: Optional[str] = None) -> None:
         super().__init__()
         self.setWindowTitle("Psyche1")
         self.resize(800, 600)
 
         self.video_capture = VideoCapture()
         self.audio_io = AudioIO()
-        self.face_recognition = FaceRecognition()
+        self.face_recognition = FaceRecognition(known_faces_dir=known_faces_dir)
 
         self._init_ui()
 
