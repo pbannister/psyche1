@@ -17,3 +17,15 @@ The `name` value is a string.
 The `confidence` value is either a float or `None` when no known faces are loaded.
 Fail with a clear error if the Haar cascade cannot be loaded.
 Allow the application to start even when no known‑faces directory is provided.
+Locate the Haar cascade XML file using a search order.
+First search the standard OpenCV data directory (`cv2.data.haarcascades`) for known filenames.
+If not found, fall back to a file next to the module (`sources/` directory).
+Finally, download the file from the OpenCV repository to the user cache (`~/.cache/psyche1/`).
+Cache the downloaded file so later runs do not re‑download.
+When opencv‑contrib‑python is missing, the recognizer is disabled.
+In that case detection still works, but all recognised faces are labelled "Unknown".
+The UI overlays the bounding box and name on the video frame.
+The `detect(frame)` method must be available separately and return the list of boxes.
+The `recognize()` method calls `detect()` internally.
+Known‑faces loading must silently skip images that do not contain faces.
+The recogniser is trained only once at startup; no online learning is performed.
