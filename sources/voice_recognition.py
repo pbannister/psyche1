@@ -97,12 +97,19 @@ class VoiceRecognition:
         """Background loop that records and transcribes chunks."""
         while not self._stream_stop_event.is_set():
             recorded = self.audio.audio_record(chunk_duration)
-            if recorded is None:
+            if recorded is None or recorded.size == 0:
                 continue
 
-            # Determine if the chunk contains audible sound
-            rms = float(np.sqrt(np.mean(np.square(recorded))))
-            has_voice = rms > VOICE_THRESHOLD
+            # Determine if the chunk contains audible sound.
+            # Use peak absolute value rather than RMS to avoid overflow
+            # from extreme float32 values.
+            recorded = recorded.ravel()
+            valid = np.isfinite(recorded)
+            if not valid.any():
+                has_voice = False
+            else:
+                peak_abs = float(np.nanmax(np.abs(recorded[valid])))
+                has_voice = peak_abs > VOICE_THRESHOLD
 
             if not has_voice:
                 # No voice heard — inform the UI without transcribing silence.
