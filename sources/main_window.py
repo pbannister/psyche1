@@ -11,6 +11,7 @@ from PyQt6.QtWidgets import (
     QMainWindow,
     QMessageBox,
     QPushButton,
+    QTabWidget,
     QVBoxLayout,
     QWidget,
 )
@@ -57,12 +58,14 @@ class MainWindow(QMainWindow):
         self._video_timer.timeout.connect(self._update_frame)
 
     def _init_ui(self) -> None:
-        central_widget = QWidget()
-        self.setCentralWidget(central_widget)
+        # Use a tab widget to separate the video and audio pages.
+        tabs = QTabWidget()
+        self.setCentralWidget(tabs)
 
-        layout = QVBoxLayout(central_widget)
+        # ── Video page ──────────────────────────────────────────────
+        video_page = QWidget()
+        video_page_layout = QVBoxLayout(video_page)
 
-        # ── Video section ───────────────────────────────────────────
         video_group = QGroupBox("Video")
         video_layout = QVBoxLayout()
 
@@ -84,9 +87,13 @@ class MainWindow(QMainWindow):
         video_layout.addLayout(video_buttons)
 
         video_group.setLayout(video_layout)
-        layout.addWidget(video_group)
+        video_page_layout.addWidget(video_group)
+        video_page_layout.addStretch()
 
-        # ── Audio section ───────────────────────────────────────────
+        # ── Audio page ──────────────────────────────────────────────
+        audio_page = QWidget()
+        audio_page_layout = QVBoxLayout(audio_page)
+
         audio_group = QGroupBox("Audio")
         audio_layout = QHBoxLayout()
 
@@ -100,9 +107,9 @@ class MainWindow(QMainWindow):
         audio_layout.addWidget(self.stop_audio_button)
 
         audio_group.setLayout(audio_layout)
-        layout.addWidget(audio_group)
+        audio_page_layout.addWidget(audio_group)
 
-        # ── Voice section ───────────────────────────────────────────
+        # ── Voice section (still on the Audio page) ─────────────────
         voice_group = QGroupBox("Voice")
         voice_layout = QVBoxLayout()
 
@@ -136,9 +143,9 @@ class MainWindow(QMainWindow):
         voice_layout.addWidget(self.transcription_label)
 
         voice_group.setLayout(voice_layout)
-        layout.addWidget(voice_group)
+        audio_page_layout.addWidget(voice_group)
 
-        # ── Speech (Text-to-Speech) section ─────────────────────────
+        # ── Speech (Text-to-Speech) section (Audio page) ────────────
         speech_group = QGroupBox("Speech")
         speech_layout = QVBoxLayout()
 
@@ -160,7 +167,11 @@ class MainWindow(QMainWindow):
         speech_layout.addLayout(speech_buttons)
 
         speech_group.setLayout(speech_layout)
-        layout.addWidget(speech_group)
+        audio_page_layout.addWidget(speech_group)
+        audio_page_layout.addStretch()
+
+        tabs.addTab(video_page, "Video")
+        tabs.addTab(audio_page, "Audio")
 
         self.voice_combo_populate()
 
