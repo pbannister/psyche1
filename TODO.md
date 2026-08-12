@@ -1,5 +1,12 @@
 # TODO
 
+* [ ] define requirements for facial recognition
+* [ ] implement facial recognition
+
+* [ ] define requirements for voice recognition
+* [ ] implement voice recognition
+
+
 ## Completed
 
 * [x] generate project conventions
