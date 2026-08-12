@@ -32,9 +32,14 @@ If you prefer to do it step by step:
     source .venv/bin/activate
     pip install -r requirements.txt
 
-> **Important**: Do not run `pip install requirements.txt` directly.
-> Use the `-r` flag (`pip install -r requirements.txt`) or the
-> `make install` target.  The command shown above is the simplest way.
+> **Important**: Always use a virtual environment when installing Python
+> packages in this project. Do not run `pip install -r requirements.txt`
+> with your system Python; it is externally managed and will refuse to
+> install packages (PEP 668).
+>
+> If you see an error like `externally-managed-environment`, either run
+> `make install` or create and activate a virtual environment as shown above
+> before running `pip`.
 
 ## Running
 

@@ -35,8 +35,17 @@ This document describes the recommended development process for the Psyche1 proj
 - Keep each commit focused on a single logical change.
 - Set up the environment with:
   ```bash
+  make install
+  ```
+  or manually (from the project root):
+  ```bash
+  python3 -m venv .venv
+  source .venv/bin/activate
   pip install -r requirements.txt
   ```
+  Do **not** run `pip install -r requirements.txt` outside the project’s
+  virtual environment—system Python is externally managed and will reject
+  the installation (see the README for details).
 - If you modify dependencies, update `requirements.txt` in the same commit.
 - If you change documentation (`prompts/`, `README.md`), consider committing those changes together with the related code.
 - Ask for clarification before implementing if a requirement is ambiguous.
