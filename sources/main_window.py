@@ -103,27 +103,27 @@ class MainWindow(QMainWindow):
         self.record_button.clicked.connect(self.toggle_voice_recording)
         voice_layout.addWidget(self.record_button)
 
-        self.voice_status_label = QLabel("Idle")
+        self.voice_status_label = QLabel("Press Record to start")
         self.voice_status_label.setWordWrap(True)
         self.voice_status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.voice_status_label.setAutoFillBackground(True)
-        self.voice_status_label.setMinimumHeight(28)
+        self.voice_status_label.setMinimumHeight(36)
         self.voice_status_label.setStyleSheet(
             """
             background-color: #9e9e9e;
             color: white;
-            padding: 4px;
+            padding: 8px;
             border: 1px solid #555;
             border-radius: 4px;
+            font-size: 14px;
             font-weight: bold;
             """
         )
         voice_layout.addWidget(self.voice_status_label)
 
-        self.transcription_label = QLabel("")
+        self.transcription_label = QLabel("Press Record to start")
         self.transcription_label.setWordWrap(True)
         self.transcription_label.setStyleSheet(
-            "background-color : #222; color: #fff; padding: 5px;"
+            "background-color : #444; color: #fff; padding: 8px; font-size: 12px;"
         )
         self.transcription_label.setMinimumHeight(40)
         voice_layout.addWidget(self.transcription_label)
@@ -231,11 +231,16 @@ class MainWindow(QMainWindow):
                 """
                 background-color: #2196F3;
                 color: white;
-                padding: 4px;
+                padding: 8px;
                 border: 1px solid #555;
                 border-radius: 4px;
+                font-size: 14px;
                 font-weight: bold;
                 """
+            )
+            self.transcription_label.setText("Listening…")
+            self.transcription_label.setStyleSheet(
+                "background-color : #444; color: #fff; padding: 8px; font-size: 12px;"
             )
             self.record_button.setText("Stop Recording")
         else:
@@ -245,11 +250,16 @@ class MainWindow(QMainWindow):
                 """
                 background-color: #9e9e9e;
                 color: white;
-                padding: 4px;
+                padding: 8px;
                 border: 1px solid #555;
                 border-radius: 4px;
+                font-size: 14px;
                 font-weight: bold;
                 """
+            )
+            self.transcription_label.setText("Idle")
+            self.transcription_label.setStyleSheet(
+                "background-color : #444; color: #fff; padding: 8px; font-size: 12px;"
             )
             self.record_button.setText("Start Recording")
 
@@ -262,23 +272,26 @@ class MainWindow(QMainWindow):
         QTimer.singleShot(0, lambda: self._set_transcription(text, has_voice))
 
     def _set_transcription(self, text: str, has_voice: bool) -> None:
-        """Update the transcription label and the voice status indicator.
+        """Update the transcription and status labels.
 
         This method runs on the main (GUI) thread.
         """
-        self.transcription_label.setText(text if text else "")
-
         if text.startswith("[Error]"):
             self.voice_status_label.setText("Error")
             self.voice_status_label.setStyleSheet(
                 """
                 background-color: #F44336;
                 color: white;
-                padding: 4px;
+                padding: 8px;
                 border: 1px solid #555;
                 border-radius: 4px;
+                font-size: 14px;
                 font-weight: bold;
                 """
+            )
+            self.transcription_label.setText(text)
+            self.transcription_label.setStyleSheet(
+                "background-color : #F44336; color: white; padding: 8px; font-size: 12px;"
             )
         elif not has_voice:
             self.voice_status_label.setText("No voice")
@@ -286,11 +299,16 @@ class MainWindow(QMainWindow):
                 """
                 background-color: #616161;
                 color: white;
-                padding: 4px;
+                padding: 8px;
                 border: 1px solid #555;
                 border-radius: 4px;
+                font-size: 14px;
                 font-weight: bold;
                 """
+            )
+            self.transcription_label.setText("No voice")
+            self.transcription_label.setStyleSheet(
+                "background-color : #616161; color: white; padding: 8px; font-size: 12px;"
             )
         elif text.strip():
             self.voice_status_label.setText("Recognized voice")
@@ -298,11 +316,16 @@ class MainWindow(QMainWindow):
                 """
                 background-color: #4CAF50;
                 color: white;
-                padding: 4px;
+                padding: 8px;
                 border: 1px solid #555;
                 border-radius: 4px;
+                font-size: 14px;
                 font-weight: bold;
                 """
+            )
+            self.transcription_label.setText(text)
+            self.transcription_label.setStyleSheet(
+                "background-color : #4CAF50; color: white; padding: 8px; font-size: 12px;"
             )
         else:
             self.voice_status_label.setText("Unrecognized voice")
@@ -310,11 +333,16 @@ class MainWindow(QMainWindow):
                 """
                 background-color: #FF9800;
                 color: white;
-                padding: 4px;
+                padding: 8px;
                 border: 1px solid #555;
                 border-radius: 4px;
+                font-size: 14px;
                 font-weight: bold;
                 """
+            )
+            self.transcription_label.setText("Unrecognized voice")
+            self.transcription_label.setStyleSheet(
+                "background-color : #FF9800; color: white; padding: 8px; font-size: 12px;"
             )
 
     def closeEvent(self, event) -> None:
