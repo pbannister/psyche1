@@ -1,9 +1,9 @@
 # TODO
 
-* [ ] add CI pipeline (optional)
 * [ ] implement text-to-speech module (`sources/text_to_speech.py`)
 * [ ] integrate text-to-speech controls into main window
 * [ ] add unit tests for text-to-speech
+* [ ] add CI pipeline (optional)
 
 ## Completed
 
