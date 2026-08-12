@@ -1,100 +1,91 @@
-"""
-Audio I/O module using sounddevice for capturing microphone input and
-playing speaker output asynchronously.
-"""
+import threading
 
-import sounddevice as sd
 import numpy as np
-from typing import Callable, Optional
+import sounddevice as sd
 
 
 class AudioIO:
-    """Manages asynchronous microphone capture and speaker playback."""
+    """Asynchronous duplex audio I/O using sounddevice.
 
-    def __init__(self, sample_rate: int = 16000) -> None:
+    Captures microphone input and plays speaker output simultaneously.
+    By default it acts as a loopback (mic -> speaker). Provide callbacks
+    to process input or generate output.
+    """
+
+    def __init__(self, sample_rate: int = 44100, channels: int = 1):
         self.sample_rate = sample_rate
-        self.input_stream: Optional[sd.InputStream] = None
-        self.output_stream: Optional[sd.OutputStream] = None
+        self.channels = channels
+        self.stream = None
+        self._lock = threading.Lock()
+        self._is_running = False
 
-    def start_capture(
-        self,
-        callback: Callable[[np.ndarray], None],
-        device: Optional[int] = None,
-    ) -> None:
+    def start(self, input_callback=None, output_callback=None):
+        """Start the audio stream.
+
+        Args:
+            input_callback: callable(indata: np.ndarray) -> np.ndarray
+                Receives the microphone chunk as a float32 numpy array
+                and returns data to be played to the speaker.
+            output_callback: callable(frames: int) -> np.ndarray
+                Receives the number of frames and returns a numpy array
+                of shape (frames, channels) to be played.
         """
-        Start capturing microphone audio.
-
-        The supplied *callback* receives a new numpy array of audio samples
-        each time a buffer is ready.
-
-        :param callback: function to process captured audio blocks
-        :param device:   sounddevice device ID (default system default)
-        """
-        def input_callback(
-            indata: np.ndarray,
-            frames: int,
-            time_info,
-            status,
-        ) -> None:
+        def callback(indata, outdata, frames, time_info, status):
             if status:
-                print(f"Audio input status: {status}")
-            # Copy the data so the callback can keep its own copy
-            callback(indata.copy())
+                print(f"Audio status: {status}")
 
-        self.input_stream = sd.InputStream(
-            samplerate=self.sample_rate,
-            device=device,
-            channels=1,
-            callback=input_callback,
-        )
-        self.input_stream.start()
-
-    def start_playback(
-        self,
-        callback: Callable[[int], np.ndarray],
-        device: Optional[int] = None,
-    ) -> None:
-        """
-        Start playback to speakers.
-
-        The user-supplied *callback* receives the number of frames required
-        and must return a numpy array of shape (frames,) or (frames,1).
-
-        :param callback: function that generates audio to be played
-        :param device:   sounddevice device ID (default None)
-        """
-        def output_callback(
-            outdata: np.ndarray,
-            frames: int,
-            time_info,
-            status,
-        ) -> None:
-            if status:
-                print(f"Audio output status: {status}")
-            data = callback(frames)
-            data = data.flatten()  # ensure 1‑D if needed
-            out_len = len(outdata)
-            if len(data) < out_len:
-                outdata[:len(data)] = data[:]
-                outdata[len(data):] = 0.0
+            if input_callback is not None:
+                processed = input_callback(indata.copy())
+                outdata[:] = processed
+            elif output_callback is not None:
+                outdata[:] = output_callback(frames)
             else:
-                outdata[:] = data[:out_len]
+                outdata[:] = indata
 
-        self.output_stream = sd.OutputStream(
+        with self._lock:
+            if self._is_running:
+                raise RuntimeError("Audio stream is already running")
+
+            self.stream = sd.Stream(
+                samplerate=self.sample_rate,
+                channels=self.channels,
+                callback=callback,
+                dtype="float32",
+            )
+            self.stream.start()
+            self._is_running = True
+
+    def stop(self):
+        """Stop and close the audio stream if it is running."""
+        with self._lock:
+            if self._is_running:
+                self.stream.stop()
+                self.stream.close()
+                self.stream = None
+                self._is_running = False
+
+    def record(self, duration: float) -> np.ndarray:
+        """Record audio for a given duration and return it as a float32 array.
+
+        Args:
+            duration: seconds to record.
+
+        Returns:
+            numpy.ndarray of shape (int(duration * sample_rate), channels)
+        """
+        audio = sd.rec(
+            int(duration * self.sample_rate),
             samplerate=self.sample_rate,
-            device=device,
-            channels=1,
-            callback=output_callback,
+            channels=self.channels,
+            dtype="float32",
         )
-        self.output_stream.start()
+        sd.wait()
+        return audio
 
-    def stop(self) -> None:
-        """Stop all streams and release resources."""
-        if self.input_stream is not None:
-            self.input_stream.stop()
-            self.input_stream.close()
-            self.input_stream = None
-        if self.output_stream is not None:
-            self.output_stream.stop()
-            self.output_stream.close()
-            self.output_stream = None
+    def play(self, data: np.ndarray):
+        """Play a numpy array of audio data asynchronously.
+
+        Args:
+            data: float32 array of shape (frames, channels) or (frames,)
+        """
+        sd.play(data, samplerate=self.sample_rate, blocking=False)
