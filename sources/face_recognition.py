@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 import os
+import urllib.request
 
 import cv2
 import numpy as np
@@ -30,10 +31,9 @@ class FaceRecognition:
         known_faces_dir: Optional[str] = None,
         cascade_path: Optional[str] = None,
     ) -> None:
-        # Search for a usable Haar cascade file in the standard OpenCV data
-        # directory.  Several file names exist across OpenCV releases; try
-        # the most common ones.
+        # ---- Locate the Haar cascade XML file --------------------------------
         if cascade_path is None:
+            # 1. Try the standard OpenCV data directory (cv2.data.haarcascades)
             base_dir = cv2.data.haarcascades
             candidates = (
                 "haarcascade_frontalface_default.xml",
@@ -49,15 +49,24 @@ class FaceRecognition:
                         break
                 except Exception:
                     continue
-            if cascade_path is None:
-                raise RuntimeError(
-                    "Could not find a Haar cascade classifier.  "
-                    f"Searched in {base_dir} with candidates "
-                    f"{', '.join(candidates)}"
-                )
 
-        # Try the usual attribute first, fall back to the low‑level
-        # extension module that some builds expose as cv2.cv2.
+            # 2. Fall back to a file placed next to this module
+            if cascade_path is None:
+                script_dir = os.path.dirname(os.path.abspath(__file__))
+                local = os.path.join(script_dir, "haarcascade_frontalface_default.xml")
+                if os.path.isfile(local):
+                    try:
+                        test = cv2.CascadeClassifier(local)
+                        if not test.empty():
+                            cascade_path = local
+                    except Exception:
+                        pass
+
+            # 3. Last resort – download the file from OpenCV's repository
+            if cascade_path is None:
+                cascade_path = self._download_cascade()
+
+        # ––––––––––––– Load the cascade –––––––––––––––––––––––––––––––––––
         try:
             self.face_cascade = cv2.CascadeClassifier(cascade_path)
         except AttributeError:
@@ -70,10 +79,20 @@ class FaceRecognition:
                 )
 
         if self.face_cascade.empty():
-            raise RuntimeError(f"Could not load Haar cascade from {cascade_path}")
+            raise RuntimeError(
+                f"Could not load Haar cascade from {cascade_path}.\n"
+                "Ensure one of the following files exists:\n"
+                f"  – a file named ``haarcascade_frontalface_default.xml`` "
+                f"in the ``sources/`` directory;\n"
+                f"  – the ``cv2.data.haarcascades`` directory "
+                f"(looked in {base_dir!r});\n"
+                f"  – the file downloaded by the application to your cache.\n"
+                "You can manually download the classifier from:\n"
+                "  https://raw.githubusercontent.com/opencv/opencv/master/data/"
+                "haarcascades/haarcascade_frontalface_default.xml"
+            )
 
-        # LBPHFaceRecognizer comes from opencv-contrib; gracefully
-        # degrade to detection-only mode if it is missing.
+        # ─────────────── Set up recognizer (contrib‑only) ──────────────────
         try:
             self.recognizer = cv2.face.LBPHFaceRecognizer_create()
         except AttributeError:
@@ -85,6 +104,36 @@ class FaceRecognition:
 
         if known_faces_dir is not None:
             self.load_known_faces(known_faces_dir)
+
+    # -----------------------------------------------------------------
+    # Helper that downloads the cascade XML from the OpenCV repository
+    # into the user's cache directory (~/.cache/psyche1/) and returns
+    # the local path.
+    # -----------------------------------------------------------------
+    @staticmethod
+    def _download_cascade() -> str:
+        """Download the cascade file from GitHub if not already cached."""
+        cache_root = Path.home() / ".cache" / "psyche1"
+        cache_root.mkdir(parents=True, exist_ok=True)
+
+        dest_path = cache_root / "haarcascade_frontalface_default.xml"
+        if not dest_path.is_file():
+            url = (
+                "https://raw.githubusercontent.com/opencv/opencv/master/data"
+                "/haarcascades/haarcascade_frontalface_default.xml"
+            )
+            print("FaceRecognition: first‑run – downloading cascade classifier…")
+            try:
+                urllib.request.urlretrieve(url, str(dest_path))
+            except Exception as exc:
+                raise RuntimeError(
+                    "Could not obtain the Haar cascade file automatically.\n"
+                    f"Try manually downloading the file from:\n  {url}\n"
+                    f"and placing it in the sources/ directory."
+                ) from exc
+        return str(dest_path)
+
+    # -----------------------------------------------------------------
 
     def load_known_faces(self, directory: str) -> None:
         """Train the recognizer from a directory of person-named subfolders."""
@@ -153,7 +202,7 @@ class FaceRecognition:
         results = []
 
         for x, y, w, h in self.detect(frame):
-            roi = gray[y : y + h, x : x + w]
+            roi = gray[y: y + h, x: x + w]
             name = "Unknown"
             confidence = None
 
@@ -161,12 +210,10 @@ class FaceRecognition:
                 label, confidence = self.recognizer.predict(roi)
                 name = self.labels.get(label, "Unknown")
 
-            results.append(
-                {
-                    "bbox": (x, y, w, h),
-                    "name": name,
-                    "confidence": float(confidence) if confidence is not None else None,
-                }
-            )
+            results.append({
+                "bbox": (x, y, w, h),
+                "name": name,
+                "confidence": float(confidence) if confidence is not None else None,
+            })
 
         return results
