@@ -11,7 +11,7 @@
 * [x] handle missing PortAudio library gracefully (allow runtime to start without audio)
 * [x] fix input underflow warnings (ignore benign warnings, set blocksize to 1024)
 * [x] verify `make run` starts without underflow warnings
-* [ ] add unit tests for audio/video modules
+* [ ] add unit tests for audio I/O
+* [ ] add unit tests for video capture
+* [ ] run `pytest` and make it pass
 * [ ] add CI pipeline (optional)
-* [ ] Write punctuation tests for AudioIO and VideoCapture classes
-* [ ] Run `pytest` to confirm initial pass before expanding coverage
