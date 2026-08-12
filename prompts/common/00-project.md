@@ -47,11 +47,18 @@ It focuses on:
 4. **Application Entry Point**
    - Running `python -m sources.main` must launch the desktop application.
 
-## Technical Constraints
+## Python-specific requirements
 
 - Language runtime: Python 3.10 or later.
 - Use type hints for all public functions and methods.
-- Dependencies must be declared in `requirements.txt` with compatible version ranges.
+- Dependencies (as listed in `requirements.txt`):
+  - `PyQt6>=6.4.0`
+  - `opencv-contrib-python>=4.8.0`
+  - `sounddevice>=0.4.6`
+  - `numpy>=1.24.0`
+  - `vosk>=0.3.45`
+  - `pydantic>=2.0.0`
+  - `pytest>=7.0.0`
 - Use `threading` for all I/O‑bound background work.
 - Shared state must be protected with `threading.Lock` or equivalent.
 - Follow the project conventions described in `prompts/common/conventions.md`.
