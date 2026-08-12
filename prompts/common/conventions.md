@@ -18,15 +18,14 @@ These conventions ensure consistency across the codebase and make it easier for 
 - Use `snake_case` for functions, variables, and module names.
 - Use `CamelCase` for class names.
 - Use `UPPER_CASE` for constants.
-* Avoid use of single-word method names.
-
-* Use structured naming, so related item sort together.
-    * Do not use single-word names in other than local scope.
-    * As a rule - the larger the scope, the longer the name.
-    * Parts of name become increasingly specific.
-        * Examples: 
-            * window_title_get()
-            * title_size, title_font
+- Avoid single-word method names outside the local scope.
+- Use structured naming so related items sort together.
+  - Do not use single-word names outside local scope.
+  - As a rule, the larger the scope, the longer the name.
+  - Parts of a name become increasingly specific.
+  - Examples:
+    - `window_title_get()`
+    - `title_size`, `title_font`
 
 ## Project Structure
 
