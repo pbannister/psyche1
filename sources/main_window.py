@@ -138,7 +138,7 @@ class MainWindow(QMainWindow):
         self.start_video_button.setEnabled(True)
         self.stop_video_button.setEnabled(False)
 
-    def _update_frame_(self) -> None:
+    def _update_frame(self) -> None:
         """Fetch the latest video frame, run face detection/recognition, and display it."""
         frame = self.video_capture.get_frame()
         if frame is None:
