@@ -16,7 +16,7 @@ from typing import Optional
 from .audio_io import AudioIO
 from .face_recognition import FaceRecognition
 from .video_capture import VideoCapture
-from .voice_recognition import VoiceRecognition  # <-- import new module
+from .voice_recognition import VoiceRecognition
 
 
 class MainWindow(QMainWindow):
@@ -35,11 +35,12 @@ class MainWindow(QMainWindow):
         self.audio_io = AudioIO()
         self.face_recognition = FaceRecognition(known_faces_dir=known_faces_dir)
 
-        # ─── New: voice recognition controller ──────────────────────────
+        # ─── New: local voice recognition controller ────────────────────
         try:
-            self.voice_recognizer = VoiceRecognition(audio_io=self.audio_io)
+            # Do not pass the 48 kHz audio_io; VoiceRecognition creates its
+            # own 16 kHz stream for Vosk.
+            self.voice_recognizer = VoiceRecognition()
         except Exception as exc:
-            # If google‑genai is missing, we still want the GUI to start.
             self.voice_recognizer = None
             print(f"VoiceRecognition disabled: {exc}")
 
@@ -94,7 +95,7 @@ class MainWindow(QMainWindow):
         audio_group.setLayout(audio_layout)
         layout.addWidget(audio_group)
 
-        # ── Voice section (new) ────────────────────────────────────────
+        # ── Voice section ───────────────────────────────────────────────
         voice_group = QGroupBox("Voice")
         voice_layout = QVBoxLayout()
 
@@ -116,7 +117,6 @@ class MainWindow(QMainWindow):
     # ── Video controls ──────────────────────────────────────────────────
     def start_video(self) -> None:
         """Start the webcam capture and begin showing frames."""
-        # If the camera was previously stopped, recreate the capture object
         if not self.video_capture.cap.isOpened():
             self.video_capture = VideoCapture()
 
@@ -144,7 +144,6 @@ class MainWindow(QMainWindow):
         if frame is None:
             return
 
-        # Run face detection / recognition on the BGR frame
         face_results = self.face_recognition.recognize(frame)
         for result in face_results:
             x, y, w, h = result["bbox"]
@@ -197,31 +196,26 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(
                 self,
                 "Voice Recognition",
-                "Voice recognition is not available (google‑genai missing or "
-                "misconfigured).\nPlease install the package and set the "
-                "``GENAI_API_KEY`` environment variable.",
+                "Voice recognition is not available (Vosk missing or no model "
+                "configured).\nInstall Vosk and place a model in "
+                "~/.cache/psyche1/ or set VOSK_MODEL_PATH.",
             )
             return
 
         if self.record_button.text() == "Start Recording":
-            # Start streaming transcription
             try:
-                self.voice_recognizer.start_stream(
-                    self._on_transcription,
-                )
+                self.voice_recognizer.start_stream(self._on_transcription)
             except Exception as exc:
                 QMessageBox.critical(self, "Voice Recognition", str(exc))
                 return
 
             self.record_button.setText("Stop Recording")
         else:
-            # Stop recording
             self.voice_recognizer.stop_stream()
             self.record_button.setText("Start Recording")
 
     def _on_transcription(self, text: str) -> None:
         """Called by the voice recognition thread with each transcribed chunk."""
-        # Must update the UI from the main (GUI) thread.
         self.transcription_label.setText(text)
 
     def closeEvent(self, event) -> None:
@@ -230,7 +224,6 @@ class MainWindow(QMainWindow):
         self.video_capture.release()
         self.audio_io.stop()
 
-        # Stop voice streaming if active
         if self.voice_recognizer is not None:
             self.voice_recognizer.stop_stream()
 

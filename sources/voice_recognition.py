@@ -1,51 +1,52 @@
+from pathlib import Path
 from typing import Callable, Optional
-import threading
-import time
+import json
 import os
+import threading
 
 import numpy as np
 
 from .audio_io import AudioIO
 
-# ---------------------------------------------------------------------------
-# google‑genai client  (try to import; None if unavailable)
-# ---------------------------------------------------------------------------
 try:
-    from google import genai as _genai
-    from google.genai import types as _types
-    _genai_available = True
+    from vosk import Model, KaldiRecognizer
+    _vosk_available = True
 except ImportError:
-    _genai_available = False
+    Model = None
+    KaldiRecognizer = None
+    _vosk_available = False
 
 
 class VoiceRecognition:
-    """Transcribe microphone audio using the google‑genai speech‑to‑text API.
+    """Transcribe microphone audio using a local Vosk model.
 
-    Uses :class:`~.audio_io.AudioIO` for audio capture and the ``google‑genai``
-    library for transcription.
-
-    The constructor accepts an optional API key either via the ``api_key``
-    parameter or the ``GENAI_API_KEY`` environment variable.
+    Audio is captured through :class:`~.audio_io.AudioIO` and processed
+    entirely offline. No network call is performed.
     """
 
     def __init__(
         self,
         audio_io: Optional[AudioIO] = None,
-        api_key: Optional[str] = None,
+        model_path: Optional[str] = None,
         language: str = "en",
     ) -> None:
-        self.audio = audio_io if audio_io is not None else AudioIO()
+        # Vosk requires 16kHz mono audio. If the caller provides an AudioIO
+        # instance that already uses 16kHz, reuse it; otherwise create our own.
+        if audio_io is not None and audio_io.sample_rate == 16000:
+            self.audio = audio_io
+        else:
+            self.audio = AudioIO(sample_rate=16000, channels=1)
+
         self.language = language
 
-        # Google client configuration
-        self._client: Optional["_genai.Client"] = None
-        self._api_key = api_key or os.environ.get("GENAI_API_KEY")
+        # Locate the Vosk model
+        self.model_path = model_path or os.environ.get("VOSK_MODEL_PATH")
+        if self.model_path is None:
+            default_cache = Path.home() / ".cache" / "psyche1" / "vosk-model-small-en-us-0.15"
+            if default_cache.is_dir():
+                self.model_path = str(default_cache)
 
-        if not _genai_available:
-            print(
-                "VoiceRecognition: google‑genai package not installed. "
-                "Install it with: pip install google‑genai"
-            )
+        self._model = None
 
         # Streaming state
         self._stream_thread: Optional[threading.Thread] = None
@@ -56,51 +57,41 @@ class VoiceRecognition:
     #  Public API
     # ------------------------------------------------------------------
     def transcribe(self, data: np.ndarray) -> str:
-        """Transcribe a NumPy audio array (float32) and return the text.
+        """Transcribe a 16kHz float32 NumPy array and return the text.
 
-        Raises a descriptive ``RuntimeError`` on failure.
+        Raises a descriptive ``RuntimeError`` if Vosk or the model cannot
+        be loaded.
         """
-        if not _genai_available:
+        if not _vosk_available:
             raise RuntimeError(
-                "google‑genai library is not installed. "
-                "Speech‑to‑text is unavailable."
+                "Vosk is not installed. Install it with: pip install vosk"
             )
 
-        if self._client is None:
-            self._client = _genai.Client(api_key=self._api_key)
+        if self._model is None:
+            if self.model_path is None or not os.path.isdir(self.model_path):
+                raise RuntimeError(
+                    "Vosk model not found. Download a model (e.g. "
+                    "vosk-model-small-en-us-0.15) and place it in "
+                    "~/.cache/psyche1/ , or set the VOSK_MODEL_PATH "
+                    "environment variable."
+                )
+            self._model = Model(self.model_path)
 
-        # Convert the float32 array to the format expected by the API.
-        # google‑genai currently expects raw bytes with a known encoding.
-        # We re‑interpret the float32 array as 16‑bit PCM, which is the
-        # most common format for speech‑to‑text.
+        # Convert float32 audio to 16-bit PCM bytes expected by Vosk
         try:
-            # Convert to 16‑bit PCM
-            pcm_bytes = (data * 32767).clip(-32768, 32767).astype(np.int16).tobytes()
+            pcm_bytes = (
+                (data * 32767).clip(-32768, 32767).astype(np.int16).tobytes()
+            )
         except Exception as exc:
             raise RuntimeError(f"Failed to convert audio to PCM: {exc}") from exc
 
-        # Use the `audio.transcribe` method of the `google‑genai` model.
-        # The exact method signature may differ between releases, so we
-        # wrap it in a broad try‑except.
         try:
-            response = self._client.audio.transcribe(
-                audio=pcm_bytes,
-                sample_rate=44100,
-                language=self.language,
-            )
-            # The response is a single string (or a dict with a 'text' key).
-            if isinstance(response, str):
-                return response
-            if hasattr(response, "text"):
-                return response.text
-            if isinstance(response, dict) and "text" in response:
-                return response["text"]
-            # Last resort – return the string representation
-            return str(response)
+            rec = KaldiRecognizer(self._model, self.audio.sample_rate)
+            rec.AcceptWaveform(pcm_bytes)
+            result = json.loads(rec.FinalResult())
+            return result.get("text", "").strip()
         except Exception as exc:
-            raise RuntimeError(
-                f"Speech‑to‑text request failed: {exc}"
-            ) from exc
+            raise RuntimeError(f"Vosk transcription failed: {exc}") from exc
 
     def start_stream(
         self,
@@ -112,10 +103,7 @@ class VoiceRecognition:
 
         For every *chunk_duration* seconds of recorded audio, the current
         chunk is transcribed and *callback* is invoked with the resulting
-        text.  Audio is captured using :meth:`~.AudioIO.record`.
-
-        The capturing runs in a daemon thread so it does not prevent the
-        application from shutting down.
+        text.
         """
         if self._stream_stop_event.is_set():
             raise RuntimeError("A voice stream is already running.")
@@ -143,7 +131,6 @@ class VoiceRecognition:
     def _stream_worker(self, chunk_duration: float) -> None:
         """Background loop that records and transcribes chunks."""
         while not self._stream_stop_event.is_set():
-            # Record a fixed‑duration chunk.
             recorded = self.audio.record(chunk_duration)
             if recorded is None:
                 continue
@@ -151,7 +138,6 @@ class VoiceRecognition:
             try:
                 text = self.transcribe(recorded)
             except RuntimeError as exc:
-                # If the API has a permanent problem, stop the stream.
                 self._stream_stop_event.set()
                 if self._transcription_callback:
                     self._transcription_callback(f"[Error] {exc}")
