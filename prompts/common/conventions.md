@@ -18,6 +18,7 @@ These conventions ensure consistency across the codebase and make it easier for 
 - Use `snake_case` for functions, variables, and module names.
 - Use `CamelCase` for class names.
 - Use `UPPER_CASE` for constants.
+* Avoid use of single-word method names.
 
 * Use structured naming, so related item sort together.
     * Do not use single-word names in other than local scope.
