@@ -1,43 +1,142 @@
-"""Local text-to-speech synthesis using pyttsx3.
+"""Local text-to-speech synthesis using Piper.
 
-The :class:`TextToSpeech` class speaks text through the system audio output.
-It uses the local ``pyttsx3`` engine and never sends data over the network.
+The :class:`TextToSpeech` class synthesizes speech with the Piper neural
+text-to-speech engine and plays it back through the system audio output
+using `sounddevice`.
 
-The module remains importable even when ``pyttsx3`` is missing; a descriptive
-error is raised when speech is attempted.
+Piper runs fully offline once the voice models are downloaded. The first
+time a built-in voice is used, its model files are downloaded to
+``~/.cache/psyche1/piper/``. No audio data is sent over the network.
+
+The module remains importable even when `piper` or `sounddevice` is
+missing; a descriptive error is raised when speech is attempted.
 """
 
+import io
+import json
+import logging
 import threading
+import urllib.request
+import wave
+from pathlib import Path
+from typing import Optional
+
+import numpy as np
 
 try:
-    import pyttsx3
+    import piper
 
-    _PYTTTSX_AVAILABLE = True
+    _PIPER_AVAILABLE = True
 except ImportError:
-    pyttsx3 = None
-    _PYTTTSX_AVAILABLE = False
+    piper = None
+    _PIPER_AVAILABLE = False
+
+try:
+    import sounddevice as sd
+
+    _SD_AVAILABLE = True
+except (ImportError, OSError):
+    sd = None
+    _SD_AVAILABLE = False
+
+logger = logging.getLogger(__name__)
+
+VOICE_CACHE_DIR = Path.home() / ".cache" / "psyche1" / "piper"
+
+# Mapping of built-in voice identifiers to display names and download URLs.
+# The URLs point to the HuggingFace repository for Piper voices.
+BUILTIN_VOICES = {
+    "en_US-lessac-medium": {
+        "name": "English (US) - Lessac - Medium",
+        "onnx_url": (
+            "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/"
+            "en/en_US/lessac/medium/en_US-lessac-medium.onnx?download=true"
+        ),
+        "json_url": (
+            "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/"
+            "en/en_US/lessac/medium/en_US-lessac-medium.onnx.json?download=true"
+        ),
+    },
+    "en_GB-alan-medium": {
+        "name": "English (UK) - Alan - Medium",
+        "onnx_url": (
+            "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/"
+            "en/en_GB/alan/medium/en_GB-alan-medium.onnx?download=true"
+        ),
+        "json_url": (
+            "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/"
+            "en/en_GB/alan/medium/en_GB-alan-medium.onnx.json?download=true"
+        ),
+    },
+    "en_US-amy-medium": {
+        "name": "English (US) - Amy - Medium",
+        "onnx_url": (
+            "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/"
+            "en/en_US/amy/medium/en_US-amy-medium.onnx?download=true"
+        ),
+        "json_url": (
+            "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/"
+            "en/en_US/amy/medium/en_US-amy-medium.onnx.json?download=true"
+        ),
+    },
+    "en_US-ryan-high": {
+        "name": "English (US) - Ryan - High",
+        "onnx_url": (
+            "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/"
+            "en/en_US/ryan/high/en_US-ryan-high.onnx?download=true"
+        ),
+        "json_url": (
+            "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/"
+            "en/en_US/ryan/high/en_US-ryan-high.onnx.json?download=true"
+        ),
+    },
+}
 
 
 class TextToSpeech:
-    """Speak text aloud using a local TTS engine.
+    """Synthesize speech with Piper and play it through the speakers.
 
-    The engine is initialised lazily on first use. If ``pyttsx3`` is not
-    installed, constructing this class still succeeds but methods that
-    need the engine raise a :class:`RuntimeError`.
+    The voice is chosen by a voice identifier (e.g., ``en_US-lessac-medium``).
+    Built-in voices are automatically downloaded on first use. Custom voices
+    may be added by placing ``<voice_id>.onnx`` and ``<voice_id>.onnx.json``
+    into :data:`VOICE_CACHE_DIR`.
     """
 
-    def __init__(self, voice_id: str | None = None) -> None:
-        self.voice_id = voice_id
-        self._engine = None
+    def __init__(self, voice_id: Optional[str] = None) -> None:
+        self.voice_id = voice_id if voice_id else "en_US-lessac-medium"
+        self._voice = None
         self._voice_list = None
-        self._lock = threading.Lock()
 
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
     def list_voices(self) -> list[dict]:
         """Return all available voices as a list of ``{'id', 'name'}``."""
-        self._load_voice_list()
+        if self._voice_list is None:
+            voices = {vid: info["name"] for vid, info in BUILTIN_VOICES.items()}
+
+            # Scan user-supplied voices already present in the cache.
+            if VOICE_CACHE_DIR.is_dir():
+                for onnx_path in VOICE_CACHE_DIR.glob("*.onnx"):
+                    vid = onnx_path.stem  # remove the .onnx extension
+                    if vid in voices:
+                        continue
+                    json_path = VOICE_CACHE_DIR / f"{vid}.onnx.json"
+                    display_name = vid
+                    if json_path.is_file():
+                        try:
+                            with open(json_path, "r", encoding="utf-8") as f:
+                                meta = json.load(f)
+                            if isinstance(meta, dict) and meta.get("name"):
+                                display_name = meta["name"]
+                        except (json.JSONDecodeError, OSError):
+                            pass
+                    voices[vid] = display_name
+
+            self._voice_list = [
+                {"id": vid, "name": name}
+                for vid, name in sorted(voices.items())
+            ]
         return list(self._voice_list)
 
     def set_voice(self, voice_id: str) -> None:
@@ -53,8 +152,8 @@ class TextToSpeech:
         if not any(v["id"] == voice_id for v in voices):
             raise ValueError(f"Voice '{voice_id}' not found.")
         self.voice_id = voice_id
-        if self._engine is not None:
-            self._engine.setProperty("voice", voice_id)
+        # Force the voice to be re-loaded on next speak().
+        self._voice = None
 
     def speak(self, text: str, block: bool = False) -> None:
         """Speak the given text.
@@ -67,19 +166,19 @@ class TextToSpeech:
         """
         self._ensure_available()
         if block:
-            self._speak_sync(text)
+            self._speak_sync(text, block=True)
         else:
             threading.Thread(
                 target=self._speak_sync,
-                args=(text,),
+                args=(text, False),
                 daemon=True,
             ).start()
 
     def stop(self) -> None:
-        """Stop any currently running speech."""
-        if self._engine is not None:
+        """Stop any currently playing audio."""
+        if _SD_AVAILABLE:
             try:
-                self._engine.stop()
+                sd.stop()
             except Exception:
                 pass
 
@@ -87,44 +186,88 @@ class TextToSpeech:
     # Internals
     # ------------------------------------------------------------------
     def _ensure_available(self) -> None:
-        if not _PYTTTSX_AVAILABLE:
+        if not _PIPER_AVAILABLE:
             raise RuntimeError(
-                "pyttsx3 is not installed. Install it with: pip install pyttsx3"
+                "Piper is not installed. Install it with: pip install piper-tts"
+            )
+        if not _SD_AVAILABLE:
+            raise RuntimeError(
+                "sounddevice (PortAudio) is not available. "
+                "Install it with: sudo apt install libportaudio2"
             )
 
-    def _get_engine(self):
-        if self._engine is None:
-            self._ensure_available()
-            try:
-                self._engine = pyttsx3.init()
-            except Exception as exc:
+    def _get_voice(self):
+        if self._voice is None:
+            model_path = self._ensure_voice_files(self.voice_id)
+            config_path = VOICE_CACHE_DIR / f"{self.voice_id}.onnx.json"
+            self._voice = piper.PiperVoice.load(model_path, config_path=config_path)
+        return self._voice
+
+    def _ensure_voice_files(self, voice_id: str) -> Path:
+        """Return the path to the ONNX model for ``voice_id``.
+
+        If the voice is a built-in, download it on first use. Otherwise the
+        files must already be present in the cache directory.
+        """
+        VOICE_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        model_path = VOICE_CACHE_DIR / f"{voice_id}.onnx"
+        json_path = VOICE_CACHE_DIR / f"{voice_id}.onnx.json"
+
+        if voice_id in BUILTIN_VOICES:
+            urls = BUILTIN_VOICES[voice_id]
+            if not model_path.is_file() or not json_path.is_file():
+                print(f"TextToSpeech: first-run – downloading voice {voice_id} …")
+                try:
+                    urllib.request.urlretrieve(urls["onnx_url"], str(model_path))
+                    urllib.request.urlretrieve(urls["json_url"], str(json_path))
+                except Exception as exc:
+                    # Clean up partial downloads so a later retry can proceed.
+                    if model_path.exists():
+                        model_path.unlink()
+                    if json_path.exists():
+                        json_path.unlink()
+                    raise RuntimeError(
+                        f"Could not download Piper voice '{voice_id}'.\n"
+                        f"Check the URLs in {urls} or download the files "
+                        f"manually to {VOICE_CACHE_DIR}."
+                    ) from exc
+        else:
+            if not model_path.is_file() or not json_path.is_file():
                 raise RuntimeError(
-                    f"Could not initialise text-to-speech engine: {exc}"
-                ) from exc
-            if self.voice_id:
-                self.set_voice(self.voice_id)
-        return self._engine
+                    f"Voice files for '{voice_id}' are not present.\n"
+                    f"Expected to find:\n  {model_path}\n  {json_path}\n"
+                    f"Place the two files in {VOICE_CACHE_DIR} or use a "
+                    f"built-in voice from {', '.join(BUILTIN_VOICES.keys())}."
+                )
 
-    def _load_voice_list(self) -> None:
-        if self._voice_list is not None:
-            return
+        return model_path
+
+    def _speak_sync(self, text: str, block: bool) -> None:
+        """Synthesize ``text`` and play it back (optionally blocking)."""
         self._ensure_available()
-        engine = self._get_engine()
-        voices = engine.getProperty("voices")
-        self._voice_list = [
-            {"id": v.id, "name": v.name}
-            for v in voices
-        ]
+        buffer = io.BytesIO()
+        self._get_voice().synthesize(text, buffer)
 
-    def _speak_sync(self, text: str) -> None:
-        engine = self._get_engine()
-        engine.say(text)
+        buffer.seek(0)
         try:
-            engine.runAndWait()
-        except Exception:
-            # Ensure any pending speech is stopped before re-raising.
-            try:
-                engine.stop()
-            except Exception:
-                pass
-            raise
+            with wave.open(buffer, "rb") as wav:
+                nchannels = wav.getnchannels()
+                sampwidth = wav.getsampwidth()
+                framerate = wav.getframerate()
+                nframes = wav.getnframes()
+                raw = wav.readframes(nframes)
+        except Exception as exc:
+            raise RuntimeError(f"Failed to read Piper output: {exc}") from exc
+
+        if sampwidth == 2:
+            dtype = np.int16
+        elif sampwidth == 4:
+            dtype = np.int32
+        else:
+            dtype = np.float32
+
+        audio = np.frombuffer(raw, dtype=dtype)
+        if nchannels > 1:
+            audio = audio.reshape(-1, nchannels)
+
+        sd.play(audio, samplerate=framerate, blocking=block)

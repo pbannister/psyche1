@@ -10,9 +10,9 @@ It combines audio I/O, webcam video, face detection/recognition, voice recogniti
 - Face detection and recognition (OpenCV Haar cascade + LBPH recognizer)
 - Voice recognition using a fully local Vosk model (microphone → text)
 - Speech-to-text for already-captured float32 audio arrays
-- Text-to-speech using local pyttsx3 engine (no network required)
-- Graceful handling of missing optional libraries (Vosk, pyttsx3, PortAudio)
-- Automatic download of the Vosk model on first use (if using the default cache path)
+- Text-to-speech using Piper (local neural TTS, no network required)
+- Graceful handling of missing optional libraries (Vosk, Piper, PortAudio)
+- Automatic download of Vosk and Piper voice models on first use
 
 ## Project structure
 

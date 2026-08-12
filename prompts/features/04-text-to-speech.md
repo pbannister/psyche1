@@ -2,22 +2,40 @@
 
 ## Overview
 
-Provide text-to-speech synthesis for the Psyche1 application.
-The module accepts a plain text string and produces spoken audio using a local, offline engine.
-It does not require network access after installation.
-The user can choose among available system voices.
+Provide text-to-speech synthesis for the Psyche1 application using the Piper neural text-to-speech engine.
+The module accepts a plain text string, synthesizes audio using a local voice model, and plays it through the system audio output.
+No audio data is sent over the network after installation.
 
 ## Functional requirements
 
 - Accept a text string and speak it aloud through the system audio output.
-- Use a local TTS engine (pyttsx3) that interfaces with system speech engines (eSpeak, Festival, etc.).
+- Use Piper as the local TTS engine, which produces significantly higher-quality speech than classic formant synthesizers.
 - Do not send text or audio data over the network.
-- Allow the user to choose a voice from the available system voices.
+- Allow the user to choose a voice from the available voices.
 - Provide a way to list all available voices with their identifiers and display names.
 - Provide a way to set the current voice by identifier.
 - Provide a way to stop speech that is currently being spoken.
-- If the TTS engine is missing, the module must still be importable and raise a descriptive error when speech is attempted.
+- If the Piper engine or the underlying PortAudio library is missing, the module must still be importable and raise a descriptive error when speech is attempted.
 - All speech operations must run in a background thread so the Qt event loop is not blocked.
+
+## Voices
+
+- Built-in voices are downloaded automatically on first use.
+- Voice models are stored in `~/.cache/psyche1/piper/`.
+- Built-in identifiers:
+
+  | Voice ID               | Description                  |
+  |------------------------|------------------------------|
+  | `en_US-lessac-medium`  | English (US) – Lessac – Medium |
+  | `en_GB-alan-medium`    | English (UK) – Alan – Medium   |
+  | `en_US-amy-medium`     | English (US) – Amy – Medium    |
+  | `en_US-ryan-high`      | English (US) – Ryan – High     |
+
+- Users can add custom voices by placing two files in the cache directory:
+  - `<voice_id>.onnx`
+  - `<voice_id>.onnx.json`
+
+The identifier is the file name without the `.onnx` extension.
 
 ## API
 
@@ -49,6 +67,7 @@ The user can choose among available system voices.
 
 ## Python-specific requirements
 
-- `pyttsx3>=2.90` (local text-to-speech engine).
-- The module must be importable even when `pyttsx3` is missing; imports provide a descriptive error when speech is attempted.
-- Use `threading` for background speech playback.
+- `piper-tts>=1.2.0` (local neural text-to-speech engine).
+- `sounddevice>=0.4.6` (audio output; already a project dependency).
+- The module must be importable even when `piper` or `sounddevice` is missing; imports provide a descriptive error when speech is attempted.
+- Use `threading` for background speech synthesis and playback.

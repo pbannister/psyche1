@@ -1,5 +1,6 @@
 """Unit tests for the text-to-speech module."""
 
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -8,96 +9,133 @@ from sources.text_to_speech import TextToSpeech
 
 
 @pytest.fixture
-def fake_engine():
-    engine = MagicMock()
-    engine.getProperty.side_effect = (
-        lambda name: [MagicMock(id="en-us", name="English")]
-        if name == "voices"
-        else None
+def setup_env(tmp_path):
+    cache_dir = tmp_path / "piper"
+    cache_dir.mkdir()
+
+    # Create dummy model and config files for a built-in voice
+    (cache_dir / "en_US-lessac-medium.onnx").write_bytes(b"dummy")
+    (cache_dir / "en_US-lessac-medium.onnx.json").write_text(
+        '{"name": "English"}', encoding="utf-8"
     )
-    return engine
+
+    fake_voice = MagicMock()
+
+    def synth(text, wav_file):
+        import wave
+
+        with wave.open(wav_file, "wb") as wav:
+            wav.setnchannels(1)
+            wav.setsampwidth(2)
+            wav.setframerate(16000)
+            wav.writeframes(b"\x00\x00" * 1600)  # 0.1 s of silence
+
+    fake_voice.synthesize.side_effect = synth
+
+    fake_piper = MagicMock()
+    fake_piper.PiperVoice.load.return_value = fake_voice
+
+    fake_sd = MagicMock()
+
+    patchers = [
+        patch("sources.text_to_speech.VOICE_CACHE_DIR", cache_dir),
+        patch("sources.text_to_speech.piper", fake_piper),
+        patch("sources.text_to_speech._PIPER_AVAILABLE", True),
+        patch("sources.text_to_speech.sd", fake_sd),
+        patch("sources.text_to_speech._SD_AVAILABLE", True),
+    ]
+    for p in patchers:
+        p.start()
+
+    yield fake_piper, fake_sd, cache_dir
+
+    for p in patchers:
+        p.stop()
 
 
-@pytest.fixture
-def patched_pyttsx3(fake_engine):
-    with patch("sources.text_to_speech.pyttsx3") as mock_pyttsx3:
-        mock_pyttsx3.init.return_value = fake_engine
-        yield mock_pyttsx3
+def test_list_voices_includes_builtin_and_custom(setup_env):
+    fake_piper, fake_sd, cache_dir = setup_env
 
+    custom_onnx = cache_dir / "my-custom.onnx"
+    custom_onnx.write_bytes(b"dummy")
+    (cache_dir / "my-custom.onnx.json").write_text(
+        '{"name": "My Custom"}', encoding="utf-8"
+    )
 
-def test_constructor_sets_voice_id():
-    tts = TextToSpeech(voice_id="test-voice")
-    assert tts.voice_id == "test-voice"
-
-
-def test_list_voices_returns_dicts(patched_pyttsx3, fake_engine):
     tts = TextToSpeech()
     voices = tts.list_voices()
-    assert isinstance(voices, list)
-    assert len(voices) == 1
-    assert voices[0]["id"] == "en-us"
-    assert voices[0]["name"] == "English"
-    fake_engine.getProperty.assert_called_with("voices")
-    assert fake_engine.getProperty.call_count == 1
+    ids = [v["id"] for v in voices]
+
+    assert "en_US-lessac-medium" in ids
+    assert "my-custom" in ids
+
+    my_custom = next(v for v in voices if v["id"] == "my-custom")
+    assert my_custom["name"] == "My Custom"
 
 
-def test_list_voices_cached(patched_pyttsx3, fake_engine):
+def test_set_voice_valid(setup_env):
     tts = TextToSpeech()
-    tts.list_voices()
-    tts.list_voices()
-    assert fake_engine.getProperty.call_count == 1
+    tts.set_voice("en_US-lessac-medium")
+    assert tts.voice_id == "en_US-lessac-medium"
 
 
-def test_set_voice_sets_attribute(patched_pyttsx3, fake_engine):
-    tts = TextToSpeech()
-    tts.set_voice("en-us")
-    assert tts.voice_id == "en-us"
-    fake_engine.setProperty.assert_called_with("voice", "en-us")
-
-
-def test_set_voice_raises_for_unknown(patched_pyttsx3):
+def test_set_voice_invalid_raises(setup_env):
     tts = TextToSpeech()
     with pytest.raises(ValueError, match="not found"):
         tts.set_voice("unknown")
 
 
-def test_speak_blocking(patched_pyttsx3, fake_engine):
+def test_speak_blocking_calls_piper_and_sd(setup_env):
+    fake_piper, fake_sd, _ = setup_env
+
     tts = TextToSpeech()
     tts.speak("hello", block=True)
-    fake_engine.say.assert_called_once_with("hello")
-    fake_engine.runAndWait.assert_called_once()
+
+    fake_piper.PiperVoice.load.assert_called_once()
+    fake_sd.play.assert_called_once()
+
+    _, kwargs = fake_sd.play.call_args
+    assert kwargs["blocking"] is True
+    assert kwargs["samplerate"] == 16000
 
 
-def test_speak_non_blocking_starts_thread(patched_pyttsx3, fake_engine):
+def test_speak_non_blocking_starts_thread(setup_env):
+    fake_piper, fake_sd, _ = setup_env
+
     tts = TextToSpeech()
     with patch("sources.text_to_speech.threading.Thread") as mock_thread:
         thread_instance = MagicMock()
         mock_thread.return_value = thread_instance
+
         tts.speak("hello", block=False)
+
         mock_thread.assert_called_once()
         _, kwargs = mock_thread.call_args
         assert kwargs["daemon"] is True
+        assert kwargs["args"] == ("hello", False)
         thread_instance.start.assert_called_once()
 
 
-def test_stop_calls_engine_stop(patched_pyttsx3, fake_engine):
+def test_stop_calls_sd_stop(setup_env):
+    fake_piper, fake_sd, _ = setup_env
+
     tts = TextToSpeech()
-    tts.speak("hello", block=True)  # force engine creation
     tts.stop()
-    fake_engine.stop.assert_called_once()
+
+    fake_sd.stop.assert_called_once()
 
 
-def test_missing_pyttsx3_raises_on_list_voices():
-    with patch("sources.text_to_speech._PYTTTSX_AVAILABLE", False), \
-         patch("sources.text_to_speech.pyttsx3", None):
+def test_missing_piper_raises_on_speak():
+    with patch("sources.text_to_speech._PIPER_AVAILABLE", False):
         tts = TextToSpeech()
-        with pytest.raises(RuntimeError, match="pyttsx3 is not installed"):
-            tts.list_voices()
+        with pytest.raises(RuntimeError, match="Piper is not installed"):
+            tts.speak("hello")
 
 
-def test_missing_pyttsx3_raises_on_speak():
-    with patch("sources.text_to_speech._PYTTTSX_AVAILABLE", False), \
-         patch("sources.text_to_speech.pyttsx3", None):
+def test_missing_sd_raises_on_speak():
+    with patch("sources.text_to_speech._SD_AVAILABLE", False), patch(
+        "sources.text_to_speech._PIPER_AVAILABLE", True
+    ):
         tts = TextToSpeech()
-        with pytest.raises(RuntimeError, match="pyttsx3 is not installed"):
+        with pytest.raises(RuntimeError, match="sounddevice"):
             tts.speak("hello")
