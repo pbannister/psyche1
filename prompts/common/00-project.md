@@ -4,11 +4,16 @@ This document captures the project requirements gathered so far.
 
 ## Overview
 
-Psyche1 is a Linux desktop application for multimodal capture and presentation. It focuses on:
+Psyche1 is a Linux desktop application for multimodal capture and presentation. 
+It focuses on:
 
-- Audio capture from the microphone and playback to the speakers (using `sounddevice`).
-- Video capture from a webcam (using OpenCV).
-- A Qt-based main window that provides controls to start and stop both audio and video capture, and displays the live webcam feed.
+- Audio capture from the microphone
+* Playback to the speakers
+- Video capture from a webcam
+- A main window that provides:
+   * controls to start and stop audio capture
+   * controls to start and stop video capture
+   * displays the live webcam feed.
 
 ## Functional Requirements
 

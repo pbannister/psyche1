@@ -2,6 +2,9 @@
 
 This document defines conventions for the Psyche1 project.
 
+Use concise sentences in the style of Douglas Adams.
+Use one sentence per line to aid comparison between versions in source control.
+
 ## Purpose
 
 These conventions ensure consistency across the codebase and make it easier for contributors to understand and modify the project.
