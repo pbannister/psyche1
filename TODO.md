@@ -7,6 +7,6 @@
 ## Upcoming
 
 * [x] add conventions and workflow for testing
+* [x] document setup and run steps in README
 * [ ] add unit tests for audio/video modules
-* [ ] document setup and run steps in README
 * [ ] add CI pipeline (optional)
