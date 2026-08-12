@@ -1,6 +1,5 @@
 # TODO
 
-* [ ] define requirements for facial recognition
 * [ ] implement facial recognition
 
 * [ ] define requirements for voice recognition
@@ -20,4 +19,5 @@
 * [x] add unit tests for audio I/O
 * [x] add unit tests for video capture
 * [x] run `pytest` and make it pass
+* [x] define requirements for facial recognition
 * [ ] add CI pipeline (optional)
