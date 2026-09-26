@@ -1,73 +1,33 @@
-# Text to speech
+# Feature: Text to Speech
 
-## Overview
+## Purpose
 
-Provide text-to-speech synthesis for the Psyche1 application using the Piper neural text-to-speech engine.
-The module accepts a plain text string, synthesizes audio using a local voice model, and plays it through the system audio output.
-No audio data is sent over the network after installation.
+Provide local text-to-speech synthesis with the Piper neural engine.
+The module accepts plain text, synthesizes audio with a local voice model, and
+plays it through the system audio output.
+No text or audio leaves the machine after installation.
 
-## Functional requirements
+## Requirements
 
-- Accept a text string and speak it aloud through the system audio output.
-- Use Piper as the local TTS engine, which produces significantly higher-quality speech than classic formant synthesizers.
-- Do not send text or audio data over the network.
-- Allow the user to choose a voice from the available voices.
-- Provide a way to list all available voices with their identifiers and display names.
-- Provide a way to set the current voice by identifier.
-- Provide a way to stop speech that is currently being spoken.
-- If the Piper engine or the underlying PortAudio library is missing, the module must still be importable and raise a descriptive error when speech is attempted.
-- All speech operations must run in a background thread so the Qt event loop is not blocked.
+- `TEXT-TO-SPEECH-R001` — Accept a text string and speak it through the system audio output.
+- `TEXT-TO-SPEECH-R002` — Use Piper as the local neural text-to-speech engine and send no text or audio data over the network.
+- `TEXT-TO-SPEECH-R003` — Provide `TextToSpeech` in `sources/text_to_speech.py` with an optional `voice_id` constructor parameter and a `voice_id` attribute reflecting the current voice.
+- `TEXT-TO-SPEECH-R004` — `voices_list_get()` returns the available voices as a list of dictionaries with `id` and `name` keys.
+- `TEXT-TO-SPEECH-R005` — `voice_set(voice_id)` selects a voice and raises `ValueError` when the identifier is unknown.
+- `TEXT-TO-SPEECH-R006` — `speech_speak(text, block=False)` speaks the text; when `block` is true it waits for completion, otherwise it returns immediately.
+- `TEXT-TO-SPEECH-R007` — `speech_stop()` stops any speech currently in progress.
+- `TEXT-TO-SPEECH-R008` — Run synthesis and playback in a background thread so the Qt event loop is not blocked.
+- `TEXT-TO-SPEECH-R009` — Store downloaded voice models in `~/.cache/psyche1/piper/` and download built-in voices automatically on first use.
+- `TEXT-TO-SPEECH-R010` — Discover custom voices from `<voice_id>.onnx` and `<voice_id>.onnx.json` pairs in the cache directory, using the file name without the `.onnx` extension as the identifier.
+- `TEXT-TO-SPEECH-R011` — Remain importable when `piper` or `sounddevice` is missing; raise a descriptive `RuntimeError` when speech is attempted.
+- `TEXT-TO-SPEECH-R012` — Expose the built-in identifiers `en_US-lessac-medium`, `en_GB-alan-medium`, `en_US-amy-medium`, and `en_US-ryan-high`.
 
-## Voices
+## Behavior
 
-- Built-in voices are downloaded automatically on first use.
-- Voice models are stored in `~/.cache/psyche1/piper/`.
-- Built-in identifiers:
+- Listing voices returns built-in and custom voices; the built-in set is available before any speech is attempted.
+- Speaking with `block=False` returns while audio continues in the background; `speech_stop()` ends it.
+- A missing engine disables speech and reports the reason.
 
-  | Voice ID               | Description                  |
-  |------------------------|------------------------------|
-  | `en_US-lessac-medium`  | English (US) – Lessac – Medium |
-  | `en_GB-alan-medium`    | English (UK) – Alan – Medium   |
-  | `en_US-amy-medium`     | English (US) – Amy – Medium    |
-  | `en_US-ryan-high`      | English (US) – Ryan – High     |
+## Dependencies
 
-- Users can add custom voices by placing two files in the cache directory:
-  - `<voice_id>.onnx`
-  - `<voice_id>.onnx.json`
-
-The identifier is the file name without the `.onnx` extension.
-
-## API
-
-- Provide a class `TextToSpeech` in a new file `sources/text_to_speech.py`.
-- Constructor accepts an optional `voice_id` parameter.
-- `voices_list_get() -> list[dict]`
-  - Return a list of dictionaries with keys `id` and `name`.
-- `voice_set(voice_id: str) -> None`
-  - Set the current voice to the given identifier.
-  - Raise a `ValueError` if the identifier is not found.
-- `speech_speak(text: str, block: bool = False) -> None`
-  - Speak the given text.
-  - If `block` is `True`, wait until speech finishes before returning.
-  - If `block` is `False`, start speech in a background thread and return immediately.
-- `speech_stop() -> None`
-  - Stop any currently running speech.
-- The class may expose a `voice_id` attribute that reflects the current voice.
-
-## UI integration
-
-- Add a "Speech" group box to the main window.
-- Inside it, place:
-  - A `QComboBox` listing available voices.
-  - A `QLineEdit` for entering text.
-  - A "Speak" button that triggers `speech_speak(text)`.
-  - A "Stop" button that triggers `speech_stop()`.
-- Populate the voice combo box when the window is created.
-- If the TTS engine is unavailable, disable the controls and show a clear error message.
-
-## Python-specific requirements
-
-- `piper-tts>=1.2.0` (local neural text-to-speech engine).
-- `sounddevice>=0.4.6` (audio output; already a project dependency).
-- The module must be importable even when `piper` or `sounddevice` is missing; imports provide a descriptive error when speech is attempted.
-- Use `threading` for background speech synthesis and playback.
+- None.

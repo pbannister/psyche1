@@ -1,0 +1,36 @@
+<h1>Psyche1 status</h1>
+
+<p>
+Psyche1 is a Linux desktop application for multimodal capture and presentation.
+It brings audio I/O, webcam video, face detection and recognition, voice
+recognition, speech to text, and text to speech into one PyQt6 window.
+</p>
+<p>
+Everything runs locally.
+No audio, video, or text leaves the machine after the optional one-time model
+downloads; the Vosk speech model and the Piper voice models are cached under
+<code>~/.cache/psyche1/</code>.
+</p>
+
+<h2>Status</h2>
+
+<p>
+The application is substantially implemented: audio loopback, webcam capture
+with face recognition, local voice recognition with a live status indicator,
+speech to text, and Piper text to speech with a voice picker.
+</p>
+<p>
+The repository was re-synced to the current project skeleton on 2026-09-26.
+The Python test suite needs an environment with PyQt6, OpenCV, Vosk, Piper, and
+PortAudio installed; until then the shell checks cover the repository structure
+and the prompt corpus.
+</p>
+
+<h2>How it works</h2>
+
+<ul>
+  <li><code>sources/</code> holds the PyQt6 application modules and the entry point (<code>python -m sources.main</code>).</li>
+  <li><code>prompts/</code> holds the rules and feature requirements; the feature index is <code>prompts/features/00-features.md</code>.</li>
+  <li><code>make install</code> creates <code>.venv</code>; <code>make run</code> launches the application.</li>
+  <li><code>make test</code> runs the shell checks and the Python tests when their dependencies are present.</li>
+</ul>

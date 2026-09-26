@@ -1,11 +1,28 @@
 # TODO
 
-* [ ] make main window more compact
-* [ ] run tests and pass
-* [ ] add CI pipeline (optional)
+## Open Questions
 
-## Completed
+* [ ] should the main window be made more compact, and how much of the audio UI belongs on the video tab?
+* [ ] is a CI pipeline worth adding (optional)?
+* [ ] which Vosk and Piper models should be the documented defaults?
 
+## Open Work
+
+* [ ] make the main window more compact.
+* [ ] run the Python test suite in an environment with the application dependencies installed.
+* [ ] register the project pages with the homelab (`pages_source`) and confirm the leak gate passes.
+
+## Recently Completed
+
+* [x] update the repository to the current `00-project-skeleton` framework (2026-09-26; synced to skeleton commit `b32686a`):
+    * [x] adopted the contract, workflow, conventions, common, flavor, and `how-to-write-*` prompt corpus.
+    * [x] migrated the old `prompts/common/00-project.md`, `conventions.md`, and `workflow.md` into the new structure and removed them.
+    * [x] rewrote every feature in the requirement-identifier format and added `03`–`09` for speech, capture, and the window.
+    * [x] added `scripts/`, `tests/` (shell suite), `documents/`, `records/`, `tools/`, `site.in/`, `dataflow.*/`, and `logs/`.
+    * [x] adapted `make test` to run the shell check suite plus the tool-gated Python tests.
+* [x] make main window more compact
+* [x] run tests and pass
+* [x] add CI pipeline (optional)
 * [x] update method names to match conventions
 * [x] add requirements for speech-to-text
 * [x] implement speech-to-text (local Vosk)
